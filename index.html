@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Raid Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    :root {
+      --bg: #050711;
+      --card-bg: #0b0f1f;
+      --accent: #ffcc00;
+      --accent-soft: rgba(255, 204, 0, 0.15);
+      --danger: #ff3366;
+      --text: #f5f5f5;
+      --muted: #a0a4c0;
+      --hp-bg: #22273d;
+      --hp-fill: #4ade80;
+      --border: #1b2035;
+      --shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #151a30 0, #050711 55%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 1100px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.8));
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      box-shadow: var(--shadow);
+      padding: 24px 24px 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .app::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background:
+        radial-gradient(circle at 0 0, rgba(255, 204, 0, 0.25), transparent 50%),
+        radial-gradient(circle at 100% 0, rgba(56, 189, 248, 0.18), transparent 50%);
+      opacity: 0.14;
+      pointer-events: none;
+    }
+
+    .app-inner {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr);
+      gap: 24px;
+      z-index: 1;
+    }
+
+    @media (max-width: 850px) {
+      .app-inner {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 12px;
+    }
+
+    .title {
+      font-size: 1.35rem;
+      font-weight: 650;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .title span.logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 30% 0%, #fff, #facc15);
+      color: #111827;
+      font-weight: 800;
+      font-size: 18px;
+      box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.4);
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(250, 204, 21, 0.4);
+      background: rgba(0, 0, 0, 0.35);
+      font-size: 0.8rem;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 18px rgba(34, 197, 94, 0.8);
+    }
+
+    .card {
+      background: linear-gradient(145deg, rgba(5, 7, 24, 0.9), rgba(3, 5, 18, 0.96));
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      padding: 16px 16px 18px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background: radial-gradient(circle at 0 0, rgba(148, 163, 253, 0.12), transparent 55%);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .boss-name {
+      font-size: 1.15rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .boss-stars {
+      color: var(--accent);
+      text-shadow: 0 0 8px rgba(250, 204, 21, 0.8);
+      font-size: 1rem;
+    }
+
+    .boss-tag {
+      font-size: 0.75rem;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 253, 0.4);
+      color: var(--muted);
+      background: rgba(15, 23, 42, 0.7);
+    }
+
+    .hp-wrapper {
+      position: relative;
+      margin-bottom: 10px;
+      z-index: 1;
+    }
+
+    .hp-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .hp-label-row .big {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .hp-bar {
+      width: 100%;
+      height: 18px;
+      border-radius: 999px;
+      background: var(--hp-bg);
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 253, 0.35);
+      position: relative;
+    }
+
+    .hp-bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #22c55e, #a3e635, #facc15, #f97316, #ef4444);
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.7);
+      transition: width 0.4s ease-out;
+      position: relative;
+    }
+
+    .hp-bar-fill::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, rgba(255, 255, 255, 0.35), transparent 60%);
+      mix-blend-mode: soft-light;
+      opacity: 0.8;
+    }
+
+    .hp-percent {
+      text-align: right;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .timer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      gap: 8px;
+    }
+
+    .timer-chip {
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 253, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .timer-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #f97316;
+      box-shadow: 0 0 12px rgba(249, 115, 22, 0.9);
+    }
+
+    .section-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .participants-list {
+      max-height: 280px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .participant {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 8px;
+      border-radius: 12px;
+      margin-bottom: 4px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(51, 65, 85, 0.8);
+      font-size: 0.8rem;
+      gap: 10px;
+    }
+
+    .participant-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .participant-name {
+      font-weight: 500;
+    }
+
+    .participant-pet {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .participant-dmg {
+      text-align: right;
+    }
+
+    .participant-dmg span {
+      display: block;
+    }
+
+    .participant-dmg .dmg {
+      font-weight: 500;
+    }
+
+    .participant-dmg .share {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .attack-log {
+      max-height: 170px;
+      overflow-y: auto;
+      padding-right: 4px;
+      font-size: 0.78rem;
+    }
+
+    .log-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 5px 6px;
+      margin-bottom: 3px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(30, 64, 175, 0.7);
+      animation: fadeInUp 0.25s ease-out;
+    }
+
+    .log-icon {
+      font-size: 0.85rem;
+      margin-top: 1px;
+    }
+
+    .log-text-main {
+      color: #e5e7eb;
+    }
+
+    .log-text-sub {
+      color: var(--muted);
+      font-size: 0.72rem;
+    }
+
+    .status-banner {
+      margin-top: 10px;
+      padding: 8px 11px;
+      border-radius: 12px;
+      font-size: 0.78rem;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 253, 0.3);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+    }
+
+    .status-banner strong {
+      color: #e5e7eb;
+    }
+
+    .status-pill {
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      font-size: 0.72rem;
+      color: #7dd3fc;
+    }
+
+    .status-pill.finished {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.6);
+      color: #fecaca;
+    }
+
+    .danger {
+      color: var(--danger);
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Scrollbar cool */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 253, 0.4);
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div>
+        <div class="title">
+          <span class="logo">R</span>
+          <span>Raid Viewer</span>
+        </div>
+        <div class="subtitle">
+          Suivi en temps réel du boss de raid de ton serveur Discord.
+        </div>
+      </div>
+      <div class="pill">
+        <span class="pill-dot"></span>
+        <span id="statusText">Connexion à l’API…</span>
+      </div>
+    </div>
+
+    <div class="app-inner">
+      <!-- Colonne gauche : boss -->
+      <div class="card">
+        <div class="card-header">
+          <div class="boss-name">
+            <span id="bossEmoji">🐾</span>
+            <span id="bossName">Aucun raid actif</span>
+            <span class="boss-stars" id="bossStars"></span>
+          </div>
+          <div class="boss-tag" id="bossTag">En attente…</div>
+        </div>
+
+        <div class="hp-wrapper">
+          <div class="hp-label-row">
+            <span>Points de vie du boss</span>
+            <span class="big">
+              <span id="hpCur">0</span> / <span id="hpMax">0</span>
+            </span>
+          </div>
+          <div class="hp-bar">
+            <div class="hp-bar-fill" id="hpBarFill"></div>
+          </div>
+          <div class="hp-percent">
+            <span id="hpPercent">0%</span> restant
+          </div>
+        </div>
+
+        <div class="timer-row">
+          <div class="timer-chip">
+            <span class="timer-dot"></span>
+            <span id="timerText">Raid non démarré</span>
+          </div>
+          <span id="difficultyText">Difficulté : -</span>
+        </div>
+
+        <div style="margin-top: 16px;">
+          <div class="section-title">Journal des attaques</div>
+          <div class="attack-log" id="attackLog">
+            <div class="log-line">
+              <div class="log-icon">ℹ️</div>
+              <div>
+                <div class="log-text-main">En attente de la prochaine mise à jour du raid…</div>
+                <div class="log-text-sub">Les attaques des joueurs apparaîtront ici.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="status-banner" id="statusBanner">
+          <span>
+            <strong>État :</strong> <span id="raidStateText">Aucun raid actif.</span>
+          </span>
+          <span class="status-pill" id="raidStatePill">En attente</span>
+        </div>
+      </div>
+
+      <!-- Colonne droite : joueurs -->
+      <div class="card">
+        <div class="section-title">Participants</div>
+        <div class="participants-list" id="participantsList">
+          <div class="participant">
+            <div class="participant-main">
+              <span class="participant-name">Personne n’a encore rejoint.</span>
+              <span class="participant-pet">Utilise /raid_join côté Discord pour commencer.</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px;">
+          <div class="section-title">Infos</div>
+          <div class="status-banner">
+            <span>
+              Ce viewer lit les données de ton API raid et met tout à jour toutes les 2 secondes.
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 🔧 À MODIFIER : URL de ton API raid
+    // Ton API doit retourner l'état JSON du raid.
+    // Exemple recommandé : soit directement l'objet raid courant,
+    // soit { "active": { ...raid... } }
+    const API_URL = "https://ton-api.exemple.com/raid";
+
+    let lastRaid = null; // pour détecter les changements
+    let lastParticipants = {}; // uid -> damage pour le log d’attaques
+
+    function formatPercent(n) {
+      return Number.isFinite(n) ? n.toFixed(1) : "0.0";
+    }
+
+    function starsToLabel(stars) {
+      if (stars >= 4) return "Difficile";
+      if (stars === 3) return "Moyen";
+      if (stars <= 2) return "Facile";
+      return "Inconnu";
+    }
+
+    function msToHms(ms) {
+      if (!ms || ms < 0) return "Terminé";
+      const totalSec = Math.floor(ms / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+      if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
+      return `${s}s`;
+    }
+
+    function updateUI(rawData) {
+      const statusText = document.getElementById("statusText");
+      const bossNameEl = document.getElementById("bossName");
+      const bossEmojiEl = document.getElementById("bossEmoji");
+      const bossStarsEl = document.getElementById("bossStars");
+      const bossTagEl = document.getElementById("bossTag");
+
+      const hpCurEl = document.getElementById("hpCur");
+      const hpMaxEl = document.getElementById("hpMax");
+      const hpBarFill = document.getElementById("hpBarFill");
+      const hpPercentEl = document.getElementById("hpPercent");
+
+      const timerTextEl = document.getElementById("timerText");
+      const difficultyTextEl = document.getElementById("difficultyText");
+
+      const participantsList = document.getElementById("participantsList");
+      const attackLog = document.getElementById("attackLog");
+
+      const raidStateText = document.getElementById("raidStateText");
+      const raidStatePill = document.getElementById("raidStatePill");
+      const statusBanner = document.getElementById("statusBanner");
+
+      // Si l’API renvoie {active: {...}}, on récupère active
+      let raid = rawData;
+      if (raid && typeof raid === "object" && raid.active) {
+        raid = raid.active;
+      }
+
+      if (!raid || typeof raid !== "object") {
+        statusText.textContent = "Aucun raid actif.";
+        bossNameEl.textContent = "Aucun raid actif";
+        bossEmojiEl.textContent = "🐾";
+        bossStarsEl.textContent = "";
+        bossTagEl.textContent = "En attente…";
+
+        hpCurEl.textContent = "0";
+        hpMaxEl.textContent = "0";
+        hpPercentEl.textContent = "0";
+        hpBarFill.style.width = "0%";
+        timerTextEl.textContent = "Raid non démarré";
+        difficultyTextEl.textContent = "Difficulté : -";
+
+        participantsList.innerHTML = `
+          <div class="participant">
+            <div class="participant-main">
+              <span class="participant-name">Personne n’a encore rejoint.</span>
+              <span class="participant-pet">Utilise /raid_join côté Discord.</span>
+            </div>
+          </div>
+        `;
+
+        attackLog.innerHTML = `
+          <div class="log-line">
+            <div class="log-icon">ℹ️</div>
+            <div>
+              <div class="log-text-main">En attente d’un raid actif…</div>
+              <div class="log-text-sub">Le viewer se mettra à jour automatiquement.</div>
+            </div>
+          </div>
+        `;
+
+        raidStateText.textContent = "Aucun raid actif.";
+        raidStatePill.textContent = "En attente";
+        raidStatePill.classList.remove("finished");
+        return;
+      }
+
+      // --- Raid actif ---
+      lastRaid = raid;
+      statusText.textContent = "Raid actif (synchro en cours…)";
+
+      const hpCur = Number(raid.hp_current ?? 0);
+      const hpMax = Number(raid.hp_max ?? 1);
+      const bossPetId = raid.boss_pet_id || "Boss";
+      const stars = Number(raid.difficulty_stars ?? 2);
+      const status = raid.status || "running";
+      const bossName = raid.boss_name || bossPetId;
+      const bossEmoji = raid.boss_emoji || "🐾";
+
+      bossNameEl.textContent = bossName;
+      bossEmojiEl.textContent = bossEmoji;
+      bossStarsEl.textContent = "⭐".repeat(Math.max(1, Math.min(4, stars)));
+      bossTagEl.textContent = status === "running" ? "Raid en cours" : "Raid terminé";
+
+      // HP
+      const ratio = hpMax > 0 ? Math.max(0, Math.min(1, hpCur / hpMax)) : 0;
+      const percent = ratio * 100;
+
+      hpCurEl.textContent = Math.max(0, Math.floor(hpCur)).toLocaleString("fr-FR");
+      hpMaxEl.textContent = Math.max(0, Math.floor(hpMax)).toLocaleString("fr-FR");
+      hpPercentEl.textContent = formatPercent(percent);
+
+      hpBarFill.style.width = percent + "%";
+      if (percent <= 25) {
+        hpBarFill.style.boxShadow = "0 0 16px rgba(239, 68, 68,0.95)";
+      } else if (percent <= 50) {
+        hpBarFill.style.boxShadow = "0 0 14px rgba(249, 115, 22,0.9)";
+      } else {
+        hpBarFill.style.boxShadow = "0 0 12px rgba(34,197,94,0.8)";
+      }
+
+      // Timer
+      const now = Date.now();
+      const startMs = (raid.start ?? 0) * 1000;
+      const endMs = (raid.end ?? 0) * 1000;
+
+      if (now < startMs) {
+        timerTextEl.textContent = "Le raid n'a pas encore commencé.";
+      } else if (now >= endMs) {
+        timerTextEl.textContent = "Raid terminé (délai écoulé).";
+      } else {
+        timerTextEl.textContent = "Temps restant : " + msToHms(endMs - now);
+      }
+
+      difficultyTextEl.textContent =
+        `Difficulté : ${starsToLabel(stars)} (${stars}★)`;
+
+      // État
+      if (status === "finished" || hpCur <= 0) {
+        raidStateText.textContent = "Raid terminé. Le boss a été vaincu ou le temps est écoulé.";
+        raidStatePill.textContent = "Terminé";
+        raidStatePill.classList.add("finished");
+      } else {
+        raidStateText.textContent = "Raid en cours. Les joueurs peuvent attaquer avec /raid_attack.";
+        raidStatePill.textContent = "En cours";
+        raidStatePill.classList.remove("finished");
+      }
+
+      // Participants
+      const participants = raid.participants || {};
+      const entries = Object.entries(participants);
+
+      if (!entries.length) {
+        participantsList.innerHTML = `
+          <div class="participant">
+            <div class="participant-main">
+              <span class="participant-name">Personne n’a encore rejoint.</span>
+              <span class="participant-pet">Utilise /raid_join côté Discord pour participer.</span>
+            </div>
+          </div>
+        `;
+      } else {
+        // total dégâts
+        let totalDmg = 0;
+        for (const [, p] of entries) {
+          totalDmg += Number(p.damage ?? 0);
+        }
+        if (totalDmg <= 0) totalDmg = 1;
+
+        // tri par dégâts
+        entries.sort((a, b) => (b[1].damage ?? 0) - (a[1].damage ?? 0));
+
+        participantsList.innerHTML = "";
+        for (const [uid, rec] of entries) {
+          const dmg = Number(rec.damage ?? 0);
+          const share = (dmg / totalDmg) * 100;
+          const petId = rec.pet_id || "pet inconnu";
+          const displayName = rec.username || `Joueur ${uid}`;
+
+          const div = document.createElement("div");
+          div.className = "participant";
+          div.innerHTML = `
+            <div class="participant-main">
+              <span class="participant-name">${displayName}</span>
+              <span class="participant-pet">Familier : <strong>${petId}</strong></span>
+            </div>
+            <div class="participant-dmg">
+              <span class="dmg">${dmg.toLocaleString("fr-FR")} dégâts</span>
+              <span class="share">${share.toFixed(1)}% du total</span>
+            </div>
+          `;
+          participantsList.appendChild(div);
+        }
+      }
+
+      // Journal d’attaques : détecter les DELTAS de dégâts
+      // (si tu veux des animations plus précises, tu peux injecter les infos côté API)
+      const newLogLines = [];
+
+      for (const [uid, rec] of Object.entries(participants)) {
+        const dmg = Number(rec.damage ?? 0);
+        const prev = lastParticipants[uid] ?? 0;
+        if (dmg > prev) {
+          const delta = dmg - prev;
+          const petId = rec.pet_id || "pet inconnu";
+          const displayName = rec.username || `Joueur ${uid}`;
+
+          newLogLines.push({
+            uid,
+            textMain: `${displayName} attaque avec ${petId} et inflige ${delta.toLocaleString("fr-FR")} dégâts !`,
+            textSub: `Total : ${dmg.toLocaleString("fr-FR")} dégâts cumulés.`,
+            icon: "⚔️",
+          });
+
+          lastParticipants[uid] = dmg;
+        }
+      }
+
+      // Si c’est la première fois qu’on charge, on ne spam pas le log
+      if (Object.keys(lastParticipants).length === 0 && entries.length > 0) {
+        for (const [uid, rec] of entries) {
+          lastParticipants[uid] = Number(rec[1]?.damage ?? rec.damage ?? 0);
+        }
+        attackLog.innerHTML = `
+          <div class="log-line">
+            <div class="log-icon">ℹ️</div>
+            <div>
+              <div class="log-text-main">Raid synchronisé.</div>
+              <div class="log-text-sub">Les prochaines attaques s’afficheront ici.</div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (newLogLines.length > 0) {
+        // garder max 30 entrées
+        const existing = Array.from(attackLog.children);
+        const newElems = newLogLines.map((l) => {
+          const div = document.createElement("div");
+          div.className = "log-line";
+          div.innerHTML = `
+            <div class="log-icon">${l.icon}</div>
+            <div>
+              <div class="log-text-main">${l.textMain}</div>
+              <div class="log-text-sub">${l.textSub}</div>
+            </div>
+          `;
+          return div;
+        });
+
+        // on ajoute en haut du log
+        for (let i = newElems.length - 1; i >= 0; i--) {
+          attackLog.insertBefore(newElems[i], attackLog.firstChild);
+        }
+
+        // limite la taille
+        const all = Array.from(attackLog.children);
+        for (let i = 30; i < all.length; i++) {
+          attackLog.removeChild(all[i]);
+        }
+      }
+    }
+
+    async function fetchRaid() {
+      try {
+        const res = await fetch(API_URL, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        updateUI(data);
+      } catch (err) {
+        console.error("Erreur API raid:", err);
+        const statusText = document.getElementById("statusText");
+        statusText.textContent = "Erreur API (voir console).";
+      }
+    }
+
+    // Premier fetch
+    fetchRaid();
+    // Rafraîchissement toutes les 2 secondes
+    setInterval(fetchRaid, 2000);
+  </script>
+</body>
+</html>
