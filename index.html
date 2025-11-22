@@ -398,7 +398,7 @@
 
     async function fetchRaidState(animateHp = false) {
       try {
-        const res = await fetch(`${API_BASE}/raid/state`);
+        const res = await fetch(`${API_BASE}/raid`);
         if (!res.ok) {
           bossNameEl.textContent = "Aucun raid actif";
           hpTextEl.textContent = "0 / 0";
@@ -509,5 +509,6 @@
   </script>
 </body>
 </html>
+
 
 
