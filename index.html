@@ -214,6 +214,20 @@
       100% { background-color: #4d1f00; }
     }
 
+    /* Tremblement du portrait du boss quand il prend un coup */
+    .boss-hit-img {
+      animation: bossHitShake 0.35s ease-out;
+    }
+
+    @keyframes bossHitShake {
+      0%   { transform: translate(0, 0) scale(1); }
+      20%  { transform: translate(-3px, 2px) scale(1.02); }
+      40%  { transform: translate(3px, -2px) scale(1.02); }
+      60%  { transform: translate(-2px, 1px) scale(1.01); }
+      80%  { transform: translate(2px, -1px) scale(1.01); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+
     .timer {
       margin-top: 10px;
       font-size: 14px;
@@ -397,6 +411,7 @@
       const timerRangeEl = document.getElementById("timer-range");
       const diffLabelEl = document.getElementById("difficulty-label");
       const bossImgEl = document.getElementById("boss-image");
+      const bossImgWrapper = document.querySelector(".boss-image-wrapper");
 
       if (!data || data.status !== "running") {
         bossNameEl.textContent = "Aucun raid actif";
@@ -444,9 +459,17 @@
 
       // Animation si le boss perd des HP
       if (prevState && prevState.hp_current > hpCur) {
+        // Barre de vie qui flash
         hpWrapperEl.classList.remove("boss-hit");
         void hpWrapperEl.offsetWidth;
         hpWrapperEl.classList.add("boss-hit");
+
+        // Portrait qui tremble
+        if (bossImgWrapper) {
+          bossImgWrapper.classList.remove("boss-hit-img");
+          void bossImgWrapper.offsetWidth; // reset anim
+          bossImgWrapper.classList.add("boss-hit-img");
+        }
       }
     }
 
