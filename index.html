@@ -2,513 +2,649 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Raid – Vue en temps réel</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Raid Viewer - Coin du Feu</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #1f2933, #0b1015);
-      color: #f9fafb;
+    :root {
+      --bg: #050816;
+      --bg-card: #0b1020;
+      --accent: #f97316;
+      --accent-soft: #fb923c33;
+      --text-main: #e5e7eb;
+      --text-soft: #9ca3af;
+      --danger: #ef4444;
+      --success: #22c55e;
+    }
+
+    * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
+      color: var(--text-main);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 16px;
     }
-    .container {
-      width: 95%;
+
+    .page {
       max-width: 900px;
-      background: rgba(15, 23, 42, 0.95);
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
-      border: 1px solid rgba(148, 163, 184, 0.4);
+      width: 100%;
+      background: linear-gradient(145deg, #020617cc, #020617f0);
+      border-radius: 24px;
+      padding: 24px 20px 20px;
+      box-shadow:
+        0 20px 60px #000000e0,
+        0 0 0 1px #1f2937;
+      border: 1px solid #1f2937;
+      position: relative;
+      overflow: hidden;
     }
-    h1 {
-      margin-top: 0;
-      margin-bottom: 0.5rem;
-      font-size: 1.6rem;
+
+    .page::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background: radial-gradient(circle at top left, #f9731633, transparent 55%),
+                  radial-gradient(circle at bottom right, #22c55e22, transparent 55%);
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .header {
+      position: relative;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-    }
-    h1 span.boss-name {
-      font-weight: 600;
-    }
-    .subtitle {
-      opacity: 0.8;
-      font-size: 0.9rem;
-      margin-bottom: 1rem;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
     }
 
-    .badge {
-      display: inline-flex;
+    .title-block h1 {
+      font-size: 1.4rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      display: flex;
       align-items: center;
-      gap: 0.35rem;
-      padding: 0.15rem 0.5rem;
-      border-radius: 999px;
-      background: rgba(55, 65, 81, 0.7);
-      font-size: 0.8rem;
-      margin-right: 0.5rem;
+      gap: 10px;
     }
 
-    .hp-wrapper {
-      margin-top: 1rem;
-      margin-bottom: 1rem;
+    .title-block h1 span.emoji {
+      font-size: 1.5rem;
+      filter: drop-shadow(0 0 10px #f97316aa);
     }
-    .hp-label {
-      font-size: 0.9rem;
-      margin-bottom: 0.25rem;
+
+    .title-block h1 span.text {
+      background: linear-gradient(to right, #f97316, #fde68a);
+      -webkit-background-clip: text;
+      color: transparent;
+      font-weight: 700;
+    }
+
+    .title-sub {
+      font-size: 0.88rem;
+      color: var(--text-soft);
+      margin-top: 2px;
+    }
+
+    .header-tag {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #111827;
+      border: 1px solid #1f2937;
+      color: var(--text-soft);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .header-tag-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 10px #22c55eaa;
+    }
+
+    .boss-card {
+      position: relative;
+      background: radial-gradient(circle at top, #111827, #020617);
+      border-radius: 18px;
+      padding: 16px 16px 14px;
+      border: 1px solid #1f2937;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .boss-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top, #f9731622, transparent 60%);
+      opacity: 0.8;
+      pointer-events: none;
+    }
+
+    .boss-header {
+      position: relative;
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
-    }
-    .hp-label span.value {
-      font-weight: 600;
-    }
-    .hp-bar-bg {
-      width: 100%;
-      height: 22px;
-      background: rgba(15, 23, 42, 0.9);
-      border-radius: 999px;
-      overflow: hidden;
-      border: 1px solid rgba(148, 163, 184, 0.6);
-    }
-    .hp-bar-fill {
-      height: 100%;
-      width: 100%;
-      background: linear-gradient(90deg, #dc2626, #f97316);
-      transform-origin: left;
-      transform: scaleX(1);
-      transition: transform 0.6s ease-out;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
     }
 
-    .raid-info {
+    .boss-main {
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      font-size: 0.85rem;
-      opacity: 0.9;
-      margin-bottom: 1rem;
+      flex-direction: column;
+      gap: 2px;
     }
 
-    .columns {
-      display: grid;
-      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-      gap: 1.5rem;
-      margin-top: 1rem;
+    .boss-name-line {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
     }
-    @media (max-width: 700px) {
-      .columns {
+
+    .boss-name-label {
+      font-size: 0.8rem;
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    .boss-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .boss-stars {
+      font-size: 1rem;
+      color: #facc15;
+      text-shadow:
+        0 0 10px #fbbf24aa,
+        0 0 20px #f97316aa;
+    }
+
+    .boss-meta {
+      font-size: 0.8rem;
+      color: var(--text-soft);
+    }
+
+    .raid-status {
+      font-size: 0.8rem;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #020617;
+      border: 1px solid #1f2937;
+      color: var(--text-soft);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .raid-status .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 6px #22c55eaa;
+    }
+
+    .hp-block {
+      position: relative;
+      margin-top: 8px;
+    }
+
+    .hp-top-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--text-soft);
+      margin-bottom: 4px;
+    }
+
+    .hp-value {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hp-bar {
+      position: relative;
+      width: 100%;
+      height: 20px;
+      border-radius: 999px;
+      background: #020617;
+      border: 1px solid #1f2937;
+      overflow: hidden;
+    }
+
+    .hp-inner-bg {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, #7f1d1d, #991b1b, #7f1d1d);
+      opacity: 0.65;
+    }
+
+    .hp-inner {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      transform-origin: left center;
+      transform: scaleX(1);
+      background: linear-gradient(90deg, #f97316, #facc15, #f97316);
+      box-shadow:
+        0 0 12px #f97316aa,
+        0 0 30px #f97316aa;
+      transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    .hp-pulse {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 10% 0, #ffffff66, transparent 55%);
+      mix-blend-mode: screen;
+      opacity: 0;
+      pointer-events: none;
+      animation: hpPulse 2.3s infinite ease-in-out;
+    }
+
+    @keyframes hpPulse {
+      0%, 70%, 100% { opacity: 0; }
+      30% { opacity: 0.5; }
+    }
+
+    .hp-percent {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-shadow: 0 1px 6px #000000aa;
+    }
+
+    .hp-low .hp-inner {
+      background: linear-gradient(90deg, #ef4444, #f97316);
+      box-shadow:
+        0 0 10px #ef4444aa,
+        0 0 24px #f97316aa;
+    }
+
+    .hp-low .hp-pulse {
+      animation-duration: 1.6s;
+    }
+
+    .hp-very-low .hp-inner {
+      background: linear-gradient(90deg, #dc2626, #f97316);
+      box-shadow:
+        0 0 16px #dc2626ee,
+        0 0 34px #f97316ee;
+    }
+
+    .hp-very-low .hp-pulse {
+      animation-duration: 1.1s;
+    }
+
+    .info-grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        padding: 18px 14px 14px;
+        border-radius: 18px;
+      }
+
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .info-grid {
         grid-template-columns: minmax(0, 1fr);
       }
     }
 
     .card {
-      background: rgba(15, 23, 42, 0.8);
-      border-radius: 12px;
-      padding: 0.85rem 1rem;
-      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: #020617;
+      border-radius: 14px;
+      border: 1px solid #1f2937;
+      padding: 10px 10px 10px;
     }
-    .card h2 {
+
+    .card-title {
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-soft);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-title span.emoji {
       font-size: 1rem;
-      margin: 0 0 0.5rem 0;
+    }
+
+    .card-body {
+      font-size: 0.86rem;
+      color: var(--text-soft);
+    }
+
+    .meta-row {
       display: flex;
       align-items: center;
-      gap: 0.4rem;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 4px;
     }
 
-    ul {
-      list-style: none;
-      padding-left: 0;
-      margin: 0;
-    }
-    li {
-      padding: 0.3rem 0;
-      font-size: 0.9rem;
-      border-bottom: 1px dashed rgba(55, 65, 81, 0.8);
-    }
-    li:last-child {
-      border-bottom: none;
+    .meta-row-label {
+      font-size: 0.78rem;
+      color: var(--text-soft);
     }
 
-    .small {
-      font-size: 0.8rem;
-      opacity: 0.75;
+    .meta-row-value {
+      font-size: 0.86rem;
+      font-variant-numeric: tabular-nums;
     }
 
-    .attack-form {
+    .subtle {
+      font-size: 0.78rem;
+      color: var(--text-soft);
+      margin-top: 4px;
+    }
+
+    .footer {
+      position: relative;
+      margin-top: 14px;
+      font-size: 0.75rem;
+      color: var(--text-soft);
       display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-      margin-top: 0.5rem;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      border-top: 1px solid #111827;
+      padding-top: 8px;
     }
-    .attack-form label {
-      font-size: 0.85rem;
-      opacity: 0.9;
-    }
-    .attack-form input, .attack-form select {
-      width: 100%;
-      padding: 0.45rem 0.6rem;
-      border-radius: 8px;
-      border: 1px solid rgba(55, 65, 81, 0.9);
-      background: rgba(15, 23, 42, 0.9);
+
+    .footer span.strong {
       color: #e5e7eb;
-      font-size: 0.9rem;
     }
-    .attack-form input:focus, .attack-form select:focus {
-      outline: 2px solid #6366f1;
-      outline-offset: 1px;
-      border-color: transparent;
-    }
-    .btn-attack {
-      margin-top: 0.3rem;
-      padding: 0.55rem 0.8rem;
-      border-radius: 999px;
-      border: none;
-      font-weight: 600;
-      font-size: 0.9rem;
+
+    .pill {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      gap: 0.4rem;
-      cursor: pointer;
-      background: linear-gradient(90deg, #f97316, #ea580c);
-      color: white;
-      box-shadow: 0 10px 25px rgba(234, 88, 12, 0.45);
-      transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
-    }
-    .btn-attack:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 15px 35px rgba(234, 88, 12, 0.6);
-    }
-    .btn-attack:active {
-      transform: translateY(0);
-      box-shadow: 0 6px 15px rgba(234, 88, 12, 0.4);
-    }
-    .btn-attack[disabled] {
-      opacity: 0.5;
-      cursor: not-allowed;
-      box-shadow: none;
-      transform: none;
-    }
-
-    .attack-log {
-      margin-top: 0.5rem;
-      font-size: 0.8rem;
-      max-height: 140px;
-      overflow-y: auto;
-      padding-right: 4px;
-    }
-    .attack-entry {
-      margin-bottom: 0.2rem;
-    }
-
-    .status-tag {
-      padding: 0.15rem 0.45rem;
+      gap: 6px;
+      padding: 4px 10px;
       border-radius: 999px;
-      background: rgba(22, 163, 74, 0.2);
-      border: 1px solid rgba(22, 163, 74, 0.5);
-      font-size: 0.8rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-    }
-    .status-tag.finished {
-      background: rgba(220, 38, 38, 0.2);
-      border-color: rgba(220, 38, 38, 0.7);
+      background: #020617;
+      border: 1px solid #111827;
+      font-size: 0.74rem;
+      color: var(--text-soft);
     }
 
-    .pulse-hit {
-      animation: pulseHit 0.35s ease-out;
+    .pill .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 6px #22c55eaa;
     }
-    @keyframes pulseHit {
-      0% { transform: scale(1); }
-      40% { transform: scale(1.03); box-shadow: 0 0 12px rgba(248, 113, 113, 0.9); }
-      100% { transform: scale(1); box-shadow: none; }
+
+    .pill.red .dot {
+      background: #ef4444;
+      box-shadow: 0 0 6px #ef4444aa;
+    }
+
+    .pill.red {
+      color: #fca5a5;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>
-      ⚔️ <span class="boss-name" id="bossName">Chargement du boss…</span>
-      <span class="badge" id="difficultyBadge">⭐⭐</span>
-    </h1>
-    <div class="subtitle">
-      Vue temps réel du raid. Actualisation automatique toutes les 5 secondes.
-    </div>
-
-    <div class="hp-wrapper">
-      <div class="hp-label">
-        <span>PV du boss</span>
-        <span class="value" id="hpText">0 / 0</span>
+  <main class="page">
+    <header class="header">
+      <div class="title-block">
+        <h1>
+          <span class="emoji">🔥</span>
+          <span class="text">Raid du Coin du Feu</span>
+        </h1>
+        <p class="title-sub">Suivi en temps réel du boss de raid (lecture seule, attaques via Discord).</p>
       </div>
-      <div class="hp-bar-bg" id="hpBarBg">
-        <div class="hp-bar-fill" id="hpBarFill"></div>
+      <div class="header-tag">
+        <span class="header-tag-dot"></span>
+        <span>Live depuis le serveur Discord</span>
       </div>
-    </div>
+    </header>
 
-    <div class="raid-info">
-      <span>⏱️ <span id="raidTimer">—</span></span>
-      <span>🎯 ID Raid : <code id="raidId">—</code></span>
-      <span id="statusTagWrapper"></span>
-    </div>
+    <section class="boss-card">
+      <div class="boss-header">
+        <div class="boss-main">
+          <div class="boss-name-line">
+            <span class="boss-name-label">Boss actuel</span>
+          </div>
+          <div class="boss-name-line">
+            <span id="bossName" class="boss-name">Chargement…</span>
+            <span id="bossStars" class="boss-stars">⭐⭐</span>
+          </div>
+          <p id="bossMeta" class="boss-meta">Rareté : — · Raid quotidien</p>
+        </div>
 
-    <div class="columns">
-      <div class="card">
-        <h2>📊 Participants</h2>
-        <div id="participants">
-          <div class="small">Personne n'a encore attaqué.</div>
+        <div class="raid-status">
+          <span class="dot"></span>
+          <span id="raidStatus">Synchronisation avec l’API…</span>
         </div>
       </div>
-      <div class="card">
-        <h2>🗡️ Attaquer le boss</h2>
-        <div class="small">
-          Cette attaque est gérée par l’API web (pas par Discord).  
-          Entrez un pseudo et un pet pour voir l’animation en temps réel.
-        </div>
-        <form class="attack-form" id="attackForm">
-          <div>
-            <label for="username">Ton pseudo (Discord)</label>
-            <input type="text" id="username" placeholder="FragKilleur#0001" required />
-          </div>
-          <div>
-            <label for="petName">Nom du familier (juste pour l'affichage)</label>
-            <input type="text" id="petName" placeholder="Dragon de Feu" required />
-          </div>
-          <div>
-            <label for="baseDamage">Dégâts de base</label>
-            <input type="number" id="baseDamage" value="100" min="1" max="100000" />
-          </div>
-          <button type="submit" class="btn-attack" id="attackBtn">
-            💥 Attaquer
-          </button>
-        </form>
-        <div class="attack-log" id="attackLog"></div>
-      </div>
-    </div>
 
-    <div class="small" style="margin-top:1rem; opacity:0.6;">
-      API : <code id="apiUrlDisplay"></code>
-    </div>
-  </div>
+      <div id="hpBlock" class="hp-block">
+        <div class="hp-top-line">
+          <span>Points de vie</span>
+          <span id="hpText" class="hp-value">— / —</span>
+        </div>
+        <div id="hpBar" class="hp-bar">
+          <div class="hp-inner-bg"></div>
+          <div id="hpInner" class="hp-inner"></div>
+          <div class="hp-pulse"></div>
+          <div id="hpPercent" class="hp-percent">100%</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="info-grid">
+      <article class="card">
+        <h2 class="card-title">
+          <span class="emoji">📊</span>
+          <span>Informations de raid</span>
+        </h2>
+        <div class="card-body">
+          <div class="meta-row">
+            <span class="meta-row-label">HP restants</span>
+            <span id="metaHp" class="meta-row-value">—</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-row-label">Difficulté</span>
+            <span id="metaDiff" class="meta-row-value">—</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-row-label">Dernière mise à jour</span>
+            <span id="metaUpdated" class="meta-row-value">—</span>
+          </div>
+          <p class="subtle">
+            Les valeurs se mettent à jour automatiquement toutes les quelques secondes, en fonction 
+            des commandes <code>/raid_join</code> et <code>/raid_attack</code> utilisées sur Discord.
+          </p>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2 class="card-title">
+          <span class="emoji">💡</span>
+          <span>Comment participer</span>
+        </h2>
+        <div class="card-body">
+          <p>
+            1. Sur le serveur Discord, utilise <code>/raid_join</code> pour choisir le familier qui combattra pour toi.<br>
+            2. Attaque le boss régulièrement avec <code>/raid_attack</code> (cooldown géré côté bot).<br>
+            3. Reviens sur cette page pour suivre la chute des PV du boss en temps réel.
+          </p>
+          <p class="subtle" style="margin-top: 6px;">
+            Toutes les mécaniques (dégâts, récompenses, drops…) sont gérées par le bot, ici tu as une vue 
+            spectateur stylée.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <footer class="footer">
+      <span>Vue raid HTML • <span class="strong">lecture seule</span> • Coin du Feu</span>
+      <div>
+        <div id="apiStatus" class="pill">
+          <span class="dot"></span>
+          <span>API raid connectée</span>
+        </div>
+      </div>
+    </footer>
+  </main>
 
   <script>
-    // >> ADAPTE L’URL ICI <<
-    const API_BASE = "https://raid-api-la5d.onrender.com";
+    // ⚙️ Mets ici l’URL de ton API Render (sans /raid à la fin)
+    const API_BASE = "https://raid-api-la5d-onrender.com";
 
-    document.getElementById("apiUrlDisplay").textContent = API_BASE;
+    const bossNameEl   = document.getElementById("bossName");
+    const bossStarsEl  = document.getElementById("bossStars");
+    const bossMetaEl   = document.getElementById("bossMeta");
+    const hpTextEl     = document.getElementById("hpText");
+    const hpInnerEl    = document.getElementById("hpInner");
+    const hpBarEl      = document.getElementById("hpBar");
+    const hpPercentEl  = document.getElementById("hpPercent");
+    const metaHpEl     = document.getElementById("metaHp");
+    const metaDiffEl   = document.getElementById("metaDiff");
+    const metaUpdatedEl= document.getElementById("metaUpdated");
+    const raidStatusEl = document.getElementById("raidStatus");
+    const apiStatusEl  = document.getElementById("apiStatus");
 
-    const bossNameEl = document.getElementById("bossName");
-    const difficultyBadgeEl = document.getElementById("difficultyBadge");
-    const hpTextEl = document.getElementById("hpText");
-    const hpBarFillEl = document.getElementById("hpBarFill");
-    const raidTimerEl = document.getElementById("raidTimer");
-    const raidIdEl = document.getElementById("raidId");
-    const participantsEl = document.getElementById("participants");
-    const statusTagWrapperEl = document.getElementById("statusTagWrapper");
-    const hpBarBgEl = document.getElementById("hpBarBg");
+    let lastHpRatio = 1;
 
-    const attackForm = document.getElementById("attackForm");
-    const attackBtn = document.getElementById("attackBtn");
-    const attackLogEl = document.getElementById("attackLog");
+    function msToRelative(ms) {
+      if (!ms) return "—";
+      const s = Math.floor(ms / 1000);
+      if (s < 5) return "à l’instant";
+      if (s < 60) return `il y a ${s}s`;
+      const m = Math.floor(s / 60);
+      if (m < 60) return `il y a ${m} min`;
+      const h = Math.floor(m / 60);
+      return `il y a ${h} h`;
+    }
 
-    let currentRaid = null;
-    let lastHp = null;
+    function rarityFromBossLabel(label) {
+      if (!label) return "—";
+      const l = label.toLowerCase();
+      if (l.includes("commun")) return "Commun";
+      if (l.includes("rare")) return "Rare";
+      if (l.includes("épique") || l.includes("epic")) return "Épique";
+      if (l.includes("légendaire") || l.includes("legendary")) return "Légendaire";
+      if (l.includes("mythique") || l.includes("mythic")) return "Mythique";
+      if (l.includes("divin")) return "Divin";
+      if (l.includes("unique")) return "Unique";
+      return "—";
+    }
 
-    function setHpBar(hpCur, hpMax, animate = true) {
-      hpCur = Math.max(0, hpCur);
-      hpMax = Math.max(1, hpMax);
-      const ratio = hpCur / hpMax;
+    function starsToText(stars) {
+      const s = Number(stars) || 0;
+      const label = s <= 2 ? "Facile" : (s === 3 ? "Moyen" : "Difficile");
+      return `${"⭐".repeat(Math.max(1, Math.min(4, s)))} (${label})`;
+    }
+
+    function updateHpBar(hpCur, hpMax) {
+      hpCur = Math.max(0, Number(hpCur) || 0);
+      hpMax = Math.max(1, Number(hpMax) || 1);
+
+      const ratio = Math.max(0, Math.min(1, hpCur / hpMax));
+      const pct = Math.round(ratio * 100);
+
       hpTextEl.textContent = `${hpCur.toLocaleString("fr-FR")} / ${hpMax.toLocaleString("fr-FR")}`;
+      hpPercentEl.textContent = `${pct}%`;
 
-      const scaleX = Math.max(0, Math.min(1, ratio));
-      if (!animate) {
-        hpBarFillEl.style.transition = "none";
-        hpBarFillEl.style.transform = `scaleX(${scaleX})`;
-        void hpBarFillEl.offsetWidth;
-        hpBarFillEl.style.transition = "transform 0.6s ease-out";
-      } else {
-        hpBarFillEl.style.transform = `scaleX(${scaleX})`;
+      hpBarEl.classList.remove("hp-low", "hp-very-low");
+      if (ratio <= 0.25) {
+        hpBarEl.classList.add("hp-very-low");
+      } else if (ratio <= 0.5) {
+        hpBarEl.classList.add("hp-low");
       }
+
+      hpInnerEl.style.transform = `scaleX(${ratio})`;
+      lastHpRatio = ratio;
     }
 
-    function starsStr(n) {
-      n = Math.max(1, Math.min(4, n || 1));
-      return "⭐".repeat(n);
-    }
-
-    function updateTimer(start, end) {
-      const now = Date.now() / 1000;
-      if (now >= end) {
-        raidTimerEl.textContent = "Raid terminé";
-        return;
-      }
-      const remaining = Math.max(0, Math.floor(end - now));
-      const h = Math.floor(remaining / 3600);
-      const m = Math.floor((remaining % 3600) / 60);
-      const s = remaining % 60;
-      raidTimerEl.textContent = `Temps restant : ${h}h ${m}m ${s}s`;
-    }
-
-    function renderStatus(status) {
-      statusTagWrapperEl.innerHTML = "";
-      const span = document.createElement("span");
-      span.className = "status-tag";
-      if (status === "finished") {
-        span.classList.add("finished");
-        span.textContent = "Raid terminé";
-      } else if (status === "running") {
-        span.textContent = "Raid en cours";
-      } else {
-        span.textContent = status || "Inconnu";
-      }
-      statusTagWrapperEl.appendChild(span);
-    }
-
-    function renderParticipants(participants) {
-      participantsEl.innerHTML = "";
-      const entries = Object.entries(participants || {});
-      if (!entries.length) {
-        const small = document.createElement("div");
-        small.className = "small";
-        small.textContent = "Personne n'a encore attaqué.";
-        participantsEl.appendChild(small);
-        return;
-      }
-      const totalDmg = entries.reduce((acc, [, rec]) => acc + (rec.damage || 0), 0) || 1;
-      const ul = document.createElement("ul");
-      entries
-        .sort((a, b) => (b[1].damage || 0) - (a[1].damage || 0))
-        .forEach(([uid, rec], idx) => {
-          const li = document.createElement("li");
-          const dmg = rec.damage || 0;
-          const pct = ((dmg / totalDmg) * 100).toFixed(1);
-
-          li.textContent =
-            `${idx + 1}. ${rec.username || uid} – ${dmg.toLocaleString("fr-FR")} dégâts `
-            + `(${pct}%) avec ${rec.pet_name || "?"}`;
-          ul.appendChild(li);
-        });
-      participantsEl.appendChild(ul);
-    }
-
-    async function fetchRaidState(animateHp = false) {
+    async function fetchRaidState() {
       try {
-        const res = await fetch(`${API_BASE}/raid`);
+        const res = await fetch(`${API_BASE}/raid`, { cache: "no-store" });
+
         if (!res.ok) {
-          bossNameEl.textContent = "Aucun raid actif";
-          hpTextEl.textContent = "0 / 0";
-          setHpBar(0, 1, false);
-          return;
+          throw new Error(`HTTP ${res.status}`);
         }
+
         const data = await res.json();
-        currentRaid = data;
+        // On tolère plusieurs formats de clés pour éviter les soucis côté bot
+        const bossName = data.boss_label || data.boss_name || data.boss || "Boss inconnu";
+        const hpCur = data.hp_current ?? data.hpCur ?? data.hp ?? 0;
+        const hpMax = data.hp_max ?? data.hpMax ?? data.max_hp ?? 1;
+        const stars = data.difficulty_stars ?? data.stars ?? 2;
+        const lastUpdateTs = data.last_update ?? data.updated_at ?? null;
 
-        bossNameEl.textContent = data.boss_pet_id || "Boss";
-        difficultyBadgeEl.textContent = starsStr(data.difficulty_stars || 1);
-        raidIdEl.textContent = data.id || "—";
-        renderStatus(data.status || "running");
+        bossNameEl.textContent = bossName;
+        bossStarsEl.textContent = "⭐".repeat(Math.max(1, Math.min(4, Number(stars) || 2)));
+        bossMetaEl.textContent = `Raid quotidien · Difficulté : ${starsToText(stars)}`;
 
-        const hpCur = data.hp_current || 0;
-        const hpMax = data.hp_max || 1;
+        updateHpBar(hpCur, hpMax);
 
-        if (lastHp !== null && hpCur < lastHp && animateHp) {
-          hpBarBgEl.classList.remove("pulse-hit");
-          void hpBarBgEl.offsetWidth;
-          hpBarBgEl.classList.add("pulse-hit");
+        metaHpEl.textContent = `${Number(hpCur).toLocaleString("fr-FR")} / ${Number(hpMax).toLocaleString("fr-FR")}`;
+        metaDiffEl.textContent = starsToText(stars);
+
+        if (lastUpdateTs) {
+          const now = Date.now();
+          const delta = now - (Number(lastUpdateTs) * 1000 || lastUpdateTs);
+          metaUpdatedEl.textContent = msToRelative(delta);
+        } else {
+          metaUpdatedEl.textContent = "—";
         }
-        lastHp = hpCur;
 
-        setHpBar(hpCur, hpMax, animateHp);
-        updateTimer(data.start, data.end);
-        renderParticipants(data.participants || {});
+        raidStatusEl.textContent = "Raid actif, attaques en cours sur Discord";
+        apiStatusEl.classList.remove("red");
+        apiStatusEl.innerHTML = `<span class="dot"></span><span>API raid connectée</span>`;
       } catch (err) {
-        console.error("Erreur fetch raid:", err);
+        raidStatusEl.textContent = "Impossible de joindre l’API raid";
+        apiStatusEl.classList.add("red");
+        apiStatusEl.innerHTML = `<span class="dot"></span><span>API indisponible</span>`;
+        // On ne casse pas l’UI, on garde les dernières valeurs connues
       }
     }
 
-    setInterval(() => {
-      fetchRaidState(false);
-    }, 5000);
-
-    fetchRaidState(false);
-
-    attackForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      if (!currentRaid || currentRaid.status === "finished") {
-        alert("Aucun raid actif ou raid terminé.");
-        return;
-      }
-
-      const username = document.getElementById("username").value.trim();
-      const petName = document.getElementById("petName").value.trim();
-      const baseDamage = parseInt(document.getElementById("baseDamage").value, 10) || 100;
-
-      if (!username || !petName) {
-        alert("Merci de renseigner ton pseudo et le nom du familier.");
-        return;
-      }
-
-      attackBtn.disabled = true;
-      attackBtn.textContent = "Attaque en cours…";
-
-      try {
-        const payload = {
-          user_id: username,    // ici on utilise le pseudo comme ID; tu pourras le remplacer par l'ID Discord
-          username: username,
-          pet_name: petName,
-          base_damage: baseDamage,
-        };
-
-        const res = await fetch(`${API_BASE}/raid/attack`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-
-        const text = await res.text();
-        let json;
-        try {
-          json = JSON.parse(text);
-        } catch (e) {
-          console.error("Réponse non-JSON:", text);
-          throw new Error(text);
-        }
-
-        if (!res.ok || !json.ok) {
-          const msg = json?.detail || json?.error || "Erreur attaque.";
-          alert(msg);
-        } else {
-          const dmg = json.applied_damage || baseDamage;
-          const entry = document.createElement("div");
-          entry.className = "attack-entry";
-          entry.textContent = `💥 ${username} attaque avec ${petName} et inflige ${dmg} dégâts !`;
-          attackLogEl.prepend(entry);
-
-          await fetchRaidState(true);
-        }
-      } catch (err) {
-        console.error("Erreur attaque:", err);
-        alert("Erreur lors de l'attaque.");
-      } finally {
-        attackBtn.disabled = false;
-        attackBtn.textContent = "💥 Attaquer";
-      }
-    });
-
-    setInterval(() => {
-      if (!currentRaid) return;
-      updateTimer(currentRaid.start, currentRaid.end);
-    }, 1000);
+    // Premier chargement rapide
+    fetchRaidState();
+    // Mise à jour toutes les 3 secondes
+    setInterval(fetchRaidState, 3000);
   </script>
 </body>
 </html>
-
-
-
