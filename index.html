@@ -3,26 +3,79 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>⚔️ RAID – Vue temps réel</title>
+  <title>🔥 Raid Au Coin Du Feu</title>
 
   <style>
     body {
       margin: 0;
       padding: 0;
       font-family: "Inter", sans-serif;
-      background: #0e0e10;
-      color: #e4e4e4;
+      background: radial-gradient(circle at bottom, #2a0e00 0%, #050308 70%);
+      color: #ffd9b3;
       display: flex;
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Texture de braises sur tout l'écran */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 20% 80%, rgba(255,160,64,0.28) 0, transparent 55%),
+        radial-gradient(circle at 70% 90%, rgba(255,90,0,0.35) 0, transparent 55%),
+        radial-gradient(circle at 40% 40%, rgba(255,200,120,0.18) 0, transparent 55%),
+        radial-gradient(circle at 80% 30%, rgba(255,120,60,0.25) 0, transparent 55%);
+      mix-blend-mode: screen;
+      opacity: 0.5;
+      animation: embersDrift 20s linear infinite alternate;
+      z-index: -1;
+    }
+
+    @keyframes embersDrift {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-25px); }
     }
 
     h1 {
       margin-top: 20px;
-      font-size: 30px;
-      font-weight: 700;
-      color: #fff;
+      font-size: 32px;
+      font-weight: 800;
+      color: #ffddaa;
+      text-shadow:
+        0 0 12px #ff6a00,
+        0 0 26px #ff4500,
+        0 0 40px rgba(255,69,0,0.7);
+      position: relative;
+    }
+
+    /* Flamme douce derrière le titre */
+    h1::after {
+      content: "";
+      position: absolute;
+      inset: -10px -40px;
+      background:
+        radial-gradient(circle at 50% 120%, rgba(255,140,0,0.75) 0, transparent 60%);
+      filter: blur(14px);
+      opacity: 0.9;
+      z-index: -1;
+      animation: flamePulse 2.3s ease-in-out infinite alternate;
+    }
+
+    @keyframes flamePulse {
+      0% {
+        transform: translateY(0) scale(1);
+        opacity: 0.6;
+      }
+      100% {
+        transform: translateY(-4px) scale(1.06);
+        opacity: 1;
+      }
     }
 
     .container {
@@ -34,54 +87,122 @@
       gap: 20px;
     }
 
-    /* ---- Status pill en haut ---- */
+    /* ---- Status pill ---- */
     .status-pill {
       padding: 8px 16px;
       border-radius: 20px;
       font-size: 16px;
       width: fit-content;
       font-weight: bold;
-      color: #fff;
+      color: #fff5e6;
+      box-shadow: 0 0 12px rgba(255,120,40,0.7);
+      background: linear-gradient(90deg, #803300, #cc5500);
     }
 
-    .status-idle { background: #444; }
-    .status-running { background: #1f8b4c; }
-    .status-finished { background: #b42525; }
+    .status-idle {
+      background: linear-gradient(90deg, #4d2a16, #a6471a);
+    }
+    .status-running {
+      background: linear-gradient(90deg, #cc5500, #ff8a2b);
+    }
+    .status-finished {
+      background: linear-gradient(90deg, #992200, #661100);
+    }
 
-    /* ---- Carte Boss ---- */
-    .card {
-      background: #18181b;
+    /* ---- Cards ---- */
+    .card,
+    .participants-card {
+      background: rgba(35, 10, 0, 0.9);
       padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+      border-radius: 14px;
+      box-shadow:
+        0 0 25px rgba(255, 80, 0, 0.25),
+        0 0 80px rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 150, 70, 0.18);
     }
 
     .boss-header {
       display: flex;
       align-items: center;
       gap: 10px;
+      color: #ffd9b3;
     }
 
     .boss-name {
       font-size: 26px;
       font-weight: bold;
+      color: #ffb36b;
+      text-shadow: 0 0 6px #ff6a00;
     }
 
+    /* Image du boss */
+    .boss-image-wrapper {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: radial-gradient(circle at 30% 20%, #ffddaa 0, #7a2d00 50%, #2a0e00 100%);
+      box-shadow:
+        0 0 12px rgba(255, 120, 40, 0.9),
+        0 0 26px rgba(0, 0, 0, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #boss-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: pixelated; /* joli si tes pets sont en pixel art */
+      transition: opacity 0.3s ease-out;
+      opacity: 0;
+    }
+
+    /* ---- HP bar ---- */
     .hp-bar-wrapper {
-      background: #2c2c2e;
-      height: 24px;
+      background: #4d1f00;
+      height: 26px;
       border-radius: 12px;
       overflow: hidden;
       margin-top: 15px;
+      box-shadow: inset 0 0 8px #120600;
       position: relative;
     }
 
     .hp-bar-fill {
-      background: #ff4444;
+      background: linear-gradient(90deg, #ff4500, #ff9a00);
       height: 100%;
       transform-origin: left;
-      transform: scaleX(1);
       transition: transform 0.5s ease-out;
+    }
+
+    /* Étincelles autour de la barre de vie boss */
+    .hp-bar-wrapper::after {
+      content: "";
+      position: absolute;
+      inset: -4px;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 10% 50%, rgba(255,255,255,0.7) 0, transparent 45%),
+        radial-gradient(circle at 40% 20%, rgba(255,220,150,0.85) 0, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(255,180,80,0.75) 0, transparent 50%);
+      mix-blend-mode: screen;
+      opacity: 0.0;
+      filter: blur(1px);
+      animation: sparks 2.8s ease-in-out infinite;
+    }
+
+    @keyframes sparks {
+      0%, 100% {
+        opacity: 0.08;
+        transform: translateY(0);
+      }
+      50% {
+        opacity: 0.4;
+        transform: translateY(-3px);
+      }
     }
 
     .boss-hit {
@@ -89,29 +210,28 @@
     }
 
     @keyframes flash {
-      0% { background-color: #7e0000; }
-      100% { background-color: #2c2c2e; }
+      0% { background-color: #ff2200; }
+      100% { background-color: #4d1f00; }
     }
 
     .timer {
       margin-top: 10px;
       font-size: 14px;
-      color: #bbb;
+      color: #ffcc99;
     }
 
     /* ---- Participants ---- */
-    .participants-card {
-      background: #18181b;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    .participants-card h2 {
+      margin-top: 0;
+      color: #ffddaa;
+      text-shadow: 0 0 6px rgba(255,120,40,0.6);
     }
 
     .participant-row {
       display: flex;
       justify-content: space-between;
       padding: 10px 0;
-      border-bottom: 1px solid #333;
+      border-bottom: 1px solid rgba(255, 128, 64, 0.3);
     }
 
     .participant-row:last-child {
@@ -121,50 +241,73 @@
     .participant-name {
       font-size: 16px;
       font-weight: 600;
+      color: #ffe0c2;
     }
 
     .participant-pet {
       font-size: 13px;
-      color: #bbb;
+      color: #ffb38a;
     }
 
     .participant-bar-outer {
-      background: #333;
+      background: #7a2d00;
       height: 12px;
       width: 120px;
       border-radius: 6px;
       overflow: hidden;
-      margin-top: 5px;
+      position: relative;
     }
 
     .participant-bar-inner {
-      background: #ff8844;
+      background: linear-gradient(90deg, #ff6a00, #ffb347);
       height: 100%;
       transform-origin: left;
-      transform: scaleX(0);
       transition: transform 0.4s ease-out;
+    }
+
+    /* Petites étincelles légères sur les barres des joueurs */
+    .participant-bar-outer::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 20% 50%, rgba(255,255,255,0.6) 0, transparent 45%),
+        radial-gradient(circle at 70% 40%, rgba(255,210,140,0.6) 0, transparent 50%);
+      mix-blend-mode: screen;
+      opacity: 0.0;
+      filter: blur(0.8px);
+      animation: smallSparks 3.4s ease-in-out infinite;
+    }
+
+    @keyframes smallSparks {
+      0%, 100% {
+        opacity: 0.05;
+        transform: translateY(0);
+      }
+      50% {
+        opacity: 0.3;
+        transform: translateY(-2px);
+      }
     }
 
     .participant-damage {
       text-align: right;
+      color: #ffd9b3;
     }
-
-    .participant-rank-1 { background: rgba(255, 215, 0, 0.08); }
-    .participant-rank-2 { background: rgba(192, 192, 192, 0.08); }
-    .participant-rank-3 { background: rgba(205, 127, 50, 0.08); }
 
     #last-update {
       margin-top: 20px;
       font-size: 14px;
-      color: #888;
-      text-align: center;
+      color: #ffcc99;
+      text-shadow: 0 0 8px #ff5500;
     }
   </style>
 </head>
 
 <body>
 
-  <h1>⚔️ RAID – Vue temps réel</h1>
+  <h1>🔥 Raid Au Coin Du Feu</h1>
 
   <div class="container">
 
@@ -176,7 +319,9 @@
     <!-- BOSS CARD -->
     <div class="card">
       <div class="boss-header">
-        <div id="boss-emoji" style="font-size: 40px;">💤</div>
+        <div class="boss-image-wrapper">
+          <img id="boss-image" src="" alt="Boss du raid" />
+        </div>
         <div>
           <div id="boss-name" class="boss-name">Aucun raid actif</div>
           <div id="boss-stars" style="color: #ffdd55; font-size: 18px;"></div>
@@ -198,7 +343,7 @@
 
     <!-- PARTICIPANTS -->
     <div class="participants-card">
-      <h2 style="margin-top: 0;">👥 Participants</h2>
+      <h2>👥 Participants</h2>
       <div id="participants-count">0 joueurs</div>
 
       <div id="participants-list" style="margin-top: 15px;"></div>
@@ -233,13 +378,6 @@
       }
     }
 
-    function pickEmojiFromName(name) {
-      if (!name) return "⚔️";
-      const code = name.split("").reduce((a,c)=>a+c.charCodeAt(0),0);
-      const emojis = ["🐲","🐉","👹","💀","🔥","⚔️","🧟","🦂","🐺","🦇"];
-      return emojis[code % emojis.length];
-    }
-
     function formatTimer(startTs, endTs, status) {
       const now = Date.now() / 1000;
       if (!startTs || !endTs) return "";
@@ -258,7 +396,7 @@
       const timerStatusEl = document.getElementById("timer-status");
       const timerRangeEl = document.getElementById("timer-range");
       const diffLabelEl = document.getElementById("difficulty-label");
-      const bossEmojiEl = document.getElementById("boss-emoji");
+      const bossImgEl = document.getElementById("boss-image");
 
       if (!data || data.status !== "running") {
         bossNameEl.textContent = "Aucun raid actif";
@@ -268,7 +406,10 @@
         diffLabelEl.textContent = "";
         timerStatusEl.textContent = "Le raid est terminé ou inactif.";
         timerRangeEl.textContent = "";
-        bossEmojiEl.textContent = "💤";
+        if (bossImgEl) {
+          bossImgEl.src = "";
+          bossImgEl.style.opacity = "0.0";
+        }
         return;
       }
 
@@ -279,7 +420,19 @@
 
       bossNameEl.textContent = bossName;
       bossStarsEl.textContent = "⭐".repeat(stars);
-      bossEmojiEl.textContent = pickEmojiFromName(bossName);
+
+      // Image du boss: assets/<ID>.png
+      if (bossImgEl && data.boss) {
+        const imgPath = `assets/${data.boss}.png`;
+        bossImgEl.style.opacity = "0.0";
+        bossImgEl.src = imgPath;
+        bossImgEl.onload = () => {
+          bossImgEl.style.opacity = "1";
+        };
+        bossImgEl.onerror = () => {
+          bossImgEl.style.opacity = "0.0"; // cache si l'image n'existe pas
+        };
+      }
 
       hpTextEl.textContent = `${formatNumber(hpCur)} / ${formatNumber(hpMax)}`;
       hpFillEl.style.transform = `scaleX(${Math.max(0, Math.min(1, hpCur/hpMax))})`;
