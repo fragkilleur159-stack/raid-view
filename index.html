@@ -3,7 +3,7 @@
   // Exemple : https://raid-api-xxxxx.onrender.com
   // ATTENTION : ici c'est juste la "base", SANS /raid/state à la fin
   const API_BASE = "https://raid-api-la5d.onrender.com";
-  const STATE_ENDPOINT = API_BASE.replace(/\/$/, "") + "/raid/state";
+  const STATE_ENDPOINT = API_BASE + "/raid/state";
 
   let prevState = null;
   let lastAttackAnimationTimeout = null;
@@ -253,4 +253,5 @@
   // Rafraîchissement toutes les 2 secondes
   setInterval(fetchRaidState, 2000);
 </script>
+
 
