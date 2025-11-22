@@ -453,8 +453,8 @@
   <script>
     // ⚙️ CONFIG : adapte cette URL à celle de ton API Render
     // Exemple : https://raid-api-la5d.onrender.com
-    const API_BASE = "https://raid-api-la5d.onrender.com/raid/state";
-    const STATE_ENDPOINT = API_BASE.replace(/\/$/, "") + "/raid/state";
+    const API_BASE = "https://raid-api-la5d.onrender.com";
+const STATE_ENDPOINT = API_BASE.replace(/\/$/, "") + "/raid/state";
 
     let prevState = null;
     let lastAttackAnimationTimeout = null;
@@ -695,4 +695,5 @@
   </script>
 </body>
 </html>
+
 
