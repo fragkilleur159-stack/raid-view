@@ -1,257 +1,392 @@
-<script>
-  // ⚙️ CONFIG : adapte cette URL à celle de ton API Render
-  // Exemple : https://raid-api-xxxxx.onrender.com
-  // ATTENTION : ici c'est juste la "base", SANS /raid/state à la fin
-  const API_BASE = "https://raid-api-la5d.onrender.com";
-  const STATE_ENDPOINT = API_BASE + "/raid/state";
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⚔️ RAID – Vue temps réel</title>
 
-  let prevState = null;
-  let lastAttackAnimationTimeout = null;
-
-  function formatNumber(n) {
-    return (n || 0).toLocaleString("fr-FR");
-  }
-
-  function starsLabel(stars) {
-    stars = Number(stars) || 0;
-    const s = "⭐".repeat(Math.max(1, Math.min(4, stars)));
-    switch (stars) {
-      case 2: return s + " (Facile)";
-      case 3: return s + " (Normal)";
-      case 4: return s + " (Difficile)";
-      default: return s;
-    }
-  }
-
-  function pickEmojiFromName(name) {
-    if (!name) return "⚔️";
-    const code = name.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-    const emojis = ["🐲", "🐉", "👹", "💀", "🔥", "⚔️", "🧟", "🦂", "🐺", "🦇"];
-    return emojis[code % emojis.length];
-  }
-
-  function formatTimer(startTs, endTs, status) {
-    const now = Date.now() / 1000;
-    if (!startTs || !endTs) return "";
-    const total = endTs - startTs;
-    const elapsed = now - startTs;
-    const remaining = endTs - now;
-
-    if (status === "finished" || remaining <= 0) {
-      return "⏱ Terminé";
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Inter", sans-serif;
+      background: #0e0e10;
+      color: #e4e4e4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
     }
 
-    const totalMin = Math.round(total / 60);
-    const elapsedMin = Math.max(0, Math.round(elapsed / 60));
-    const remainMin = Math.max(0, Math.round(remaining / 60));
-
-    return `⏱ ${elapsedMin} min / ${totalMin} min (reste ~${remainMin} min)`;
-  }
-
-  function updateBossView(data) {
-    const bossNameEl = document.getElementById("boss-name");
-    const bossStarsEl = document.getElementById("boss-stars");
-    const hpTextEl = document.getElementById("hp-text");
-    const hpFillEl = document.getElementById("hp-fill");
-    const hpWrapperEl = document.getElementById("hp-wrapper");
-    const diffLabelEl = document.getElementById("difficulty-label");
-    const timerStatusEl = document.getElementById("timer-status");
-    const timerRangeEl = document.getElementById("timer-range");
-    const bossEmojiEl = document.getElementById("boss-emoji");
-
-    if (!data || data.status !== "running") {
-      bossNameEl.textContent = "Aucun raid actif";
-      bossStarsEl.textContent = "";
-      hpTextEl.textContent = "0 / 0";
-      hpFillEl.style.transform = "scaleX(0)";
-      diffLabelEl.textContent = "";
-      timerStatusEl.textContent = "Le raid est terminé ou inactif.";
-      timerRangeEl.textContent = "";
-      bossEmojiEl.textContent = "💤";
-      return;
+    h1 {
+      margin-top: 20px;
+      font-size: 30px;
+      font-weight: 700;
+      color: #fff;
     }
 
-    const bossName = data.boss || "Boss inconnu";
-    const hpCur = Number(data.hp_current) || 0;
-    const hpMax = Math.max(1, Number(data.hp_max) || 1);
-    const stars = Number(data.stars) || 0;
-    const startTs = Number(data.start || 0);
-    const endTs = Number(data.end || 0);
-
-    bossNameEl.textContent = bossName;
-    bossStarsEl.textContent = "⭐".repeat(Math.max(1, Math.min(4, stars)));
-    bossEmojiEl.textContent = bossName.includes(" ") ? "⚔️" : pickEmojiFromName(bossName);
-
-    hpTextEl.textContent = `${formatNumber(hpCur)} / ${formatNumber(hpMax)}`;
-
-    const ratio = Math.max(0, Math.min(1, hpCur / hpMax));
-    hpFillEl.style.transform = `scaleX(${ratio})`;
-
-    diffLabelEl.textContent = starsLabel(stars);
-    timerStatusEl.textContent = formatTimer(startTs, endTs, data.status);
-    if (startTs && endTs) {
-      const startDate = new Date(startTs * 1000);
-      const endDate = new Date(endTs * 1000);
-      timerRangeEl.textContent = `Du ${startDate.toLocaleString("fr-FR")} au ${endDate.toLocaleString("fr-FR")}`;
-    } else {
-      timerRangeEl.textContent = "";
+    .container {
+      margin-top: 20px;
+      width: 90%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
     }
 
-    // Animation boss frappé : si les PV ont baissé depuis la dernière frame
-    if (prevState && prevState.status === "running") {
-      const prevCur = Number(prevState.hp_current) || 0;
-      if (hpCur < prevCur) {
+    /* ---- Status pill en haut ---- */
+    .status-pill {
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 16px;
+      width: fit-content;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .status-idle { background: #444; }
+    .status-running { background: #1f8b4c; }
+    .status-finished { background: #b42525; }
+
+    /* ---- Carte Boss ---- */
+    .card {
+      background: #18181b;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    }
+
+    .boss-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .boss-name {
+      font-size: 26px;
+      font-weight: bold;
+    }
+
+    .hp-bar-wrapper {
+      background: #2c2c2e;
+      height: 24px;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 15px;
+      position: relative;
+    }
+
+    .hp-bar-fill {
+      background: #ff4444;
+      height: 100%;
+      transform-origin: left;
+      transform: scaleX(1);
+      transition: transform 0.5s ease-out;
+    }
+
+    .boss-hit {
+      animation: flash 0.25s ease-out;
+    }
+
+    @keyframes flash {
+      0% { background-color: #7e0000; }
+      100% { background-color: #2c2c2e; }
+    }
+
+    .timer {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #bbb;
+    }
+
+    /* ---- Participants ---- */
+    .participants-card {
+      background: #18181b;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    }
+
+    .participant-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #333;
+    }
+
+    .participant-row:last-child {
+      border-bottom: none;
+    }
+
+    .participant-name {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .participant-pet {
+      font-size: 13px;
+      color: #bbb;
+    }
+
+    .participant-bar-outer {
+      background: #333;
+      height: 12px;
+      width: 120px;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+
+    .participant-bar-inner {
+      background: #ff8844;
+      height: 100%;
+      transform-origin: left;
+      transform: scaleX(0);
+      transition: transform 0.4s ease-out;
+    }
+
+    .participant-damage {
+      text-align: right;
+    }
+
+    .participant-rank-1 { background: rgba(255, 215, 0, 0.08); }
+    .participant-rank-2 { background: rgba(192, 192, 192, 0.08); }
+    .participant-rank-3 { background: rgba(205, 127, 50, 0.08); }
+
+    #last-update {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #888;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>⚔️ RAID – Vue temps réel</h1>
+
+  <div class="container">
+
+    <!-- STATUS -->
+    <div class="status-pill status-idle" id="status-pill">
+      <span id="status-text">Aucun raid</span>
+    </div>
+
+    <!-- BOSS CARD -->
+    <div class="card">
+      <div class="boss-header">
+        <div id="boss-emoji" style="font-size: 40px;">💤</div>
+        <div>
+          <div id="boss-name" class="boss-name">Aucun raid actif</div>
+          <div id="boss-stars" style="color: #ffdd55; font-size: 18px;"></div>
+        </div>
+      </div>
+
+      <div class="hp-bar-wrapper" id="hp-wrapper">
+        <div class="hp-bar-fill" id="hp-fill"></div>
+      </div>
+
+      <div id="hp-text" style="margin-top: 8px; font-size: 16px;">
+        0 / 0
+      </div>
+
+      <div id="difficulty-label" style="margin-top: 10px; font-weight: bold;"></div>
+      <div class="timer" id="timer-status"></div>
+      <div class="timer" id="timer-range"></div>
+    </div>
+
+    <!-- PARTICIPANTS -->
+    <div class="participants-card">
+      <h2 style="margin-top: 0;">👥 Participants</h2>
+      <div id="participants-count">0 joueurs</div>
+
+      <div id="participants-list" style="margin-top: 15px;"></div>
+      <div id="participants-empty" style="text-align:center; padding: 10px; color:#aaa; display:none;">
+        Aucun joueur pour le moment…
+      </div>
+    </div>
+  </div>
+
+  <div id="last-update"></div>
+
+  <!-- SCRIPT -->
+  <script>
+    // ⚙️ METTRE TON URL RENDER ICI
+    const API_BASE = "https://raid-api-la5d.onrender.com"; 
+    const STATE_ENDPOINT = API_BASE + "/raid/state";
+
+    let prevState = null;
+
+    function formatNumber(n) {
+      return (n || 0).toLocaleString("fr-FR");
+    }
+
+    function starsLabel(stars) {
+      stars = Number(stars) || 0;
+      const s = "⭐".repeat(Math.max(1, Math.min(4, stars)));
+      switch (stars) {
+        case 2: return s + " (Facile)";
+        case 3: return s + " (Normal)";
+        case 4: return s + " (Difficile)";
+        default: return s;
+      }
+    }
+
+    function pickEmojiFromName(name) {
+      if (!name) return "⚔️";
+      const code = name.split("").reduce((a,c)=>a+c.charCodeAt(0),0);
+      const emojis = ["🐲","🐉","👹","💀","🔥","⚔️","🧟","🦂","🐺","🦇"];
+      return emojis[code % emojis.length];
+    }
+
+    function formatTimer(startTs, endTs, status) {
+      const now = Date.now() / 1000;
+      if (!startTs || !endTs) return "";
+      const remaining = endTs - now;
+      if (status === "finished" || remaining <= 0) return "⏱ Terminé";
+      const total = endTs - startTs;
+      return `⏱ ${Math.round((now-startTs)/60)} min / ${Math.round(total/60)} min`;
+    }
+
+    function updateBossView(data) {
+      const bossNameEl = document.getElementById("boss-name");
+      const bossStarsEl = document.getElementById("boss-stars");
+      const hpTextEl = document.getElementById("hp-text");
+      const hpFillEl = document.getElementById("hp-fill");
+      const hpWrapperEl = document.getElementById("hp-wrapper");
+      const timerStatusEl = document.getElementById("timer-status");
+      const timerRangeEl = document.getElementById("timer-range");
+      const diffLabelEl = document.getElementById("difficulty-label");
+      const bossEmojiEl = document.getElementById("boss-emoji");
+
+      if (!data || data.status !== "running") {
+        bossNameEl.textContent = "Aucun raid actif";
+        bossStarsEl.textContent = "";
+        hpTextEl.textContent = "0 / 0";
+        hpFillEl.style.transform = "scaleX(0)";
+        diffLabelEl.textContent = "";
+        timerStatusEl.textContent = "Le raid est terminé ou inactif.";
+        timerRangeEl.textContent = "";
+        bossEmojiEl.textContent = "💤";
+        return;
+      }
+
+      const bossName = data.boss || "Boss";
+      const hpCur = Number(data.hp_current) || 0;
+      const hpMax = Math.max(1, Number(data.hp_max) || 1);
+      const stars = Number(data.stars) || 0;
+
+      bossNameEl.textContent = bossName;
+      bossStarsEl.textContent = "⭐".repeat(stars);
+      bossEmojiEl.textContent = pickEmojiFromName(bossName);
+
+      hpTextEl.textContent = `${formatNumber(hpCur)} / ${formatNumber(hpMax)}`;
+      hpFillEl.style.transform = `scaleX(${Math.max(0, Math.min(1, hpCur/hpMax))})`;
+
+      diffLabelEl.textContent = starsLabel(stars);
+
+      timerStatusEl.textContent = formatTimer(data.start, data.end, data.status);
+      timerRangeEl.textContent = `Du ${new Date(data.start*1000).toLocaleString("fr-FR")} au ${new Date(data.end*1000).toLocaleString("fr-FR")}`;
+
+      // Animation si le boss perd des HP
+      if (prevState && prevState.hp_current > hpCur) {
         hpWrapperEl.classList.remove("boss-hit");
-        void hpWrapperEl.offsetWidth; // force reflow
+        void hpWrapperEl.offsetWidth;
         hpWrapperEl.classList.add("boss-hit");
       }
     }
-  }
 
-  function updateParticipantsView(data) {
-    const listEl = document.getElementById("participants-list");
-    const emptyEl = document.getElementById("participants-empty");
-    const countEl = document.getElementById("participants-count");
+    function updateParticipantsView(data) {
+      const listEl = document.getElementById("participants-list");
+      const emptyEl = document.getElementById("participants-empty");
+      const countEl = document.getElementById("participants-count");
 
-    const participants = (data && Array.isArray(data.participants))
-      ? data.participants.slice()
-      : [];
+      const participants = Array.isArray(data.participants) ? data.participants : [];
 
-    if (participants.length === 0) {
+      if (participants.length === 0) {
+        listEl.innerHTML = "";
+        emptyEl.style.display = "block";
+        countEl.textContent = "0 joueurs";
+        return;
+      }
+
+      emptyEl.style.display = "none";
+      countEl.textContent = `${participants.length} joueurs`;
+
       listEl.innerHTML = "";
-      emptyEl.style.display = "block";
-      countEl.textContent = "0 joueurs";
-      return;
-    }
+      participants.sort((a,b)=>b.damage - a.damage);
 
-    emptyEl.style.display = "none";
-    countEl.textContent = `${participants.length} joueur(s)`;
+      let max = participants[0]?.damage || 1;
 
-    participants.sort((a, b) => (b.damage || 0) - (a.damage || 0));
+      for (let p of participants) {
+        const row = document.createElement("div");
+        row.classList.add("participant-row");
 
-    let maxDmg = 0;
-    for (const p of participants) {
-      if ((p.damage || 0) > maxDmg) {
-        maxDmg = p.damage || 0;
+        const col1 = document.createElement("div");
+        col1.innerHTML = `
+          <div class="participant-name">${p.name}</div>
+          <div class="participant-pet">${p.pet}</div>
+        `;
+
+        const col2 = document.createElement("div");
+        col2.className = "participant-damage";
+        const barOuter = document.createElement("div");
+        barOuter.className = "participant-bar-outer";
+        const barInner = document.createElement("div");
+        barInner.className = "participant-bar-inner";
+        barInner.style.transform = `scaleX(${p.damage/max})`;
+
+        barOuter.appendChild(barInner);
+        col2.innerHTML = `${formatNumber(p.damage)} dmg`;
+        col2.appendChild(barOuter);
+
+        row.appendChild(col1);
+        row.appendChild(col2);
+        listEl.appendChild(row);
       }
     }
-    if (maxDmg <= 0) maxDmg = 1;
 
-    listEl.innerHTML = "";
-    participants.forEach((p, idx) => {
-      const row = document.createElement("div");
-      row.className = "participant-row";
+    function updateStatusPill(data) {
+      const pill = document.getElementById("status-pill");
+      const text = document.getElementById("status-text");
 
-      const dmgRatio = Math.max(0, Math.min(1, (p.damage || 0) / maxDmg));
+      pill.classList.remove("status-idle","status-running","status-finished");
 
-      const colorClass =
-        idx === 0 ? "participant-rank-1"
-        : idx === 1 ? "participant-rank-2"
-        : idx === 2 ? "participant-rank-3"
-        : "";
-
-      if (colorClass) {
-        row.classList.add(colorClass);
-      }
-
-      // Colonne 1 : pseudo + pet
-      const col1 = document.createElement("div");
-      const nameDiv = document.createElement("div");
-      nameDiv.className = "participant-name";
-      nameDiv.textContent = p.name || `Joueur #${idx + 1}`;
-
-      const petDiv = document.createElement("div");
-      petDiv.className = "participant-pet";
-      petDiv.textContent = p.pet ? `Pet: ${p.pet}` : "";
-
-      col1.appendChild(nameDiv);
-      col1.appendChild(petDiv);
-
-      // Colonne 2 : dégâts + barre
-      const col2 = document.createElement("div");
-      col2.className = "participant-damage";
-
-      const dmgText = document.createElement("div");
-      dmgText.textContent = `${formatNumber(p.damage || 0)} dmg`;
-
-      const barOuter = document.createElement("div");
-      barOuter.className = "participant-bar-outer";
-
-      const barInner = document.createElement("div");
-      barInner.className = "participant-bar-inner";
-      barInner.style.transform = `scaleX(${dmgRatio})`;
-
-      barOuter.appendChild(barInner);
-      col2.appendChild(dmgText);
-      col2.appendChild(barOuter);
-
-      row.appendChild(col1);
-      row.appendChild(col2);
-      listEl.appendChild(row);
-    });
-  }
-
-  function updateStatusPill(data) {
-    const pill = document.getElementById("status-pill");
-    const textEl = document.getElementById("status-text");
-
-    pill.classList.remove("status-idle", "status-running", "status-finished");
-
-    if (!data) {
-      pill.classList.add("status-idle");
-      textEl.textContent = "Aucun raid";
-      return;
-    }
-
-    switch (data.status) {
-      case "running":
-        pill.classList.add("status-running");
-        textEl.textContent = "Raid en cours";
-        break;
-      case "finished":
-        pill.classList.add("status-finished");
-        textEl.textContent = "Raid terminé";
-        break;
-      default:
+      if (!data) {
         pill.classList.add("status-idle");
-        textEl.textContent = "Aucun raid";
-        break;
-    }
-  }
-
-  function setLastUpdate() {
-    const el = document.getElementById("last-update");
-    const now = new Date();
-    el.textContent = `Dernière mise à jour : ${now.toLocaleTimeString("fr-FR")}`;
-  }
-
-  async function fetchRaidState() {
-    try {
-      const res = await fetch(STATE_ENDPOINT, { cache: "no-store" });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+        text.textContent = "Aucun raid";
+      } else if (data.status === "running") {
+        pill.classList.add("status-running");
+        text.textContent = "Raid en cours";
+      } else {
+        pill.classList.add("status-finished");
+        text.textContent = "Raid terminé";
       }
-      const data = await res.json();
-
-      // data est déjà exactement au bon format grâce à main.py
-      updateBossView(data);
-      updateParticipantsView(data);
-      updateStatusPill(data);
-      setLastUpdate();
-
-      prevState = data;
-    } catch (err) {
-      console.error("Erreur de récupération du raid:", err);
-      updateBossView(null);
-      updateParticipantsView(null);
-      updateStatusPill(null);
     }
-  }
 
-  // Premier appel
-  fetchRaidState();
-  // Rafraîchissement toutes les 2 secondes
-  setInterval(fetchRaidState, 2000);
-</script>
+    function setLastUpdate() {
+      document.getElementById("last-update").textContent =
+        "Dernière mise à jour : " + new Date().toLocaleTimeString("fr-FR");
+    }
 
+    async function fetchRaidState() {
+      try {
+        const res = await fetch(STATE_ENDPOINT+"?t="+Date.now());
+        const data = await res.json();
+        updateBossView(data);
+        updateParticipantsView(data);
+        updateStatusPill(data);
+        prevState = data;
+      } catch (e) {
+        console.error("Erreur API:", e);
+      }
+      setLastUpdate();
+    }
 
+    fetchRaidState();
+    setInterval(fetchRaidState, 2000);
+  </script>
+
+</body>
+</html>
