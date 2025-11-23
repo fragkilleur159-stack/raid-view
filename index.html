@@ -383,11 +383,14 @@
 
     function starsLabel(stars) {
       stars = Number(stars) || 0;
-      const s = "⭐".repeat(Math.max(1, Math.min(4, stars)));
+      const s = "⭐".repeat(Math.max(1, Math.min(7, stars)));
       switch (stars) {
         case 2: return s + " (Facile)";
         case 3: return s + " (Normal)";
         case 4: return s + " (Difficile)";
+        case 5: return s + " (Tres Difficile)";
+        case 6: return s + " (Hardcore)";
+        case 7: return s + " (IMPOSSIBLE)";  
         default: return s;
       }
     }
@@ -566,3 +569,4 @@
 
 </body>
 </html>
+
