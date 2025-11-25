@@ -465,13 +465,22 @@
         return;
       }
       if (!statusData || statusData.status !== "running") {
+      btn.disabled = true;
+      status.textContent = "Aucun raid actif.";
+      return;
+    }
+
+    // 🔁 contrôle du tour
+    if (statusData.current_turn && currentUserId) {
+      if (String(statusData.current_turn) !== String(currentUserId)) {
         btn.disabled = true;
-        status.textContent = "Aucun raid actif.";
+        status.textContent = "Ce n'est pas ton tour. Patiente…";
         return;
       }
-      btn.disabled = false;
-      status.textContent = "Si tu as rejoint avec /raid_join, ton attaque sera prise en compte.";
     }
+
+    btn.disabled = false;
+    status.textContent = "C'est ton tour ! Clique sur Attaquer.";
 
     function formatNumber(n) {
       return (n || 0).toLocaleString("fr-FR");
@@ -697,3 +706,4 @@
 
 </body>
 </html>
+
