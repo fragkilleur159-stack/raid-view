@@ -6,6 +6,34 @@
   <title>🔥 Raid Au Coin Du Feu</title>
 
   <style>
+    .hit-log-row .hit-dmg {
+      font-weight: 600;
+    }
+
+        /* dégâts normaux */
+    .hit-log-row.normal .hit-dmg {
+      color: #ffb36b;
+    }
+
+    /* critique */
+    .hit-log-row.crit .hit-dmg {
+      color: #ffe066;
+      text-shadow: 0 0 6px #ffe066, 0 0 12px rgba(255, 230, 150, 0.6);
+    }
+
+    /* spécial / ultime */
+    .hit-log-row.ultimate .hit-dmg,
+    .hit-log-row.special .hit-dmg {
+      color: #ff4444;
+      font-weight: 800;
+      text-shadow: 0 0 6px #ff2222, 0 0 14px rgba(255, 0, 0, 0.7);
+    }
+
+    /* nom du boss en rouge */
+    .hit-log-row.boss .hit-name {
+      color: #ff8080;
+    }
+    
     /* Boss qui tremble quand il se fait toucher */
     .boss-image-wrapper.hit {
       animation: bossShake 0.35s ease-out;
@@ -1019,6 +1047,21 @@
       try {
         const res = await fetch(STATE_ENDPOINT+"?t="+Date.now());
         data = await res.json();
+        // 🔥 NOUVEAU : log des attaques du boss si l'API renvoie last_boss_attack
+        if (data.last_boss_attack) {
+          const atk = data.last_boss_attack; // { target, damage, type }
+
+          hitLog.unshift({
+            type: "boss",
+            name: "Boss",
+            damage: atk.damage,
+            ts: Date.now(),
+            // "normal" | "crit" | "ultimate"
+            kind: atk.type || "normal",
+          });
+          hitLog = hitLog.slice(0, 8);
+          updateHitLogView();
+        }
         updateBossView(data);
         updateParticipantsView(data);
         updateStatusPill(data);
@@ -1112,6 +1155,7 @@ setDynamicRefresh("idle");
 
 </body>
 </html>
+
 
 
 
