@@ -902,10 +902,18 @@
           row.classList.add("current-turn");
         }
 
+        const hpCur = p.hp_current || 0;
+        const hpMax = p.hp_max || 1;
+        const hpRatio = Math.max(0, Math.min(1, hpCur / hpMax));
+
         const col1 = document.createElement("div");
         col1.innerHTML = `
           <div class="participant-name">${p.name}</div>
           <div class="participant-pet">${p.pet}</div>
+          <div class="participant-hp-text">${formatNumber(hpCur)} / ${formatNumber(hpMax)} HP</div>
+          <div class="participant-bar-outer participant-hp-bar">
+            <div class="participant-bar-inner" style="transform: scaleX(${hpRatio});"></div>
+          </div>
         `;
 
         const col2 = document.createElement("div");
@@ -1029,6 +1037,7 @@
 
 </body>
 </html>
+
 
 
 
