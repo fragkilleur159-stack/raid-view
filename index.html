@@ -20,6 +20,7 @@
       overflow-x: hidden;
     }
 
+    /* Texture de braises sur tout l'écran */
     body::before {
       content: "";
       position: fixed;
@@ -53,6 +54,7 @@
       position: relative;
     }
 
+    /* Flamme douce derrière le titre */
     h1::after {
       content: "";
       position: absolute;
@@ -85,6 +87,7 @@
       gap: 20px;
     }
 
+    /* ---- Status pill ---- */
     .status-pill {
       padding: 8px 16px;
       border-radius: 20px;
@@ -96,11 +99,20 @@
       background: linear-gradient(90deg, #803300, #cc5500);
     }
 
-    .status-idle { background: linear-gradient(90deg, #4d2a16, #a6471a); }
-    .status-running { background: linear-gradient(90deg, #cc5500, #ff8a2b); }
-    .status-finished { background: linear-gradient(90deg, #992200, #661100); }
+    .status-idle {
+      background: linear-gradient(90deg, #4d2a16, #a6471a);
+    }
+    .status-running {
+      background: linear-gradient(90deg, #cc5500, #ff8a2b);
+    }
+    .status-finished {
+      background: linear-gradient(90deg, #992200, #661100);
+    }
 
-    .card, .participants-card, .attack-card {
+    /* ---- Cards ---- */
+    .card,
+    .participants-card,
+    .attack-card {
       background: rgba(35, 10, 0, 0.9);
       padding: 20px;
       border-radius: 14px;
@@ -125,6 +137,7 @@
       text-shadow: 0 0 6px #ff6a00;
     }
 
+    /* Image du boss */
     .boss-image-wrapper {
       width: 80px;
       height: 80px;
@@ -148,6 +161,7 @@
       opacity: 0;
     }
 
+    /* ---- HP bar ---- */
     .hp-bar-wrapper {
       background: #4d1f00;
       height: 26px;
@@ -165,27 +179,54 @@
       transition: transform 0.5s ease-out;
     }
 
-    .timer { margin-top: 10px; font-size: 14px; color: #ffcc99; }
-
-    /* 🔥 AJOUT INDICATEUR DE TOUR */
-    .turn-indicator {
-      margin-top: 5px;
-      font-size: 15px;
-      font-weight: 700;
-      color: #ffd9b3;
-      text-align: center;
-      text-shadow: 0 0 8px rgba(255, 150, 80, 0.6);
+    .hp-bar-wrapper::after {
+      content: "";
+      position: absolute;
+      inset: -4px;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 10% 50%, rgba(255,255,255,0.7) 0, transparent 45%),
+        radial-gradient(circle at 40% 20%, rgba(255,220,150,0.85) 0, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(255,180,80,0.75) 0, transparent 50%);
+      mix-blend-mode: screen;
+      opacity: 0.0;
+      filter: blur(1px);
+      animation: sparks 2.8s ease-in-out infinite;
     }
 
-    /* 🔥 AJOUT SURBRILLANCE DU JOUEUR EN COURS */
-    .participant-row.current-turn {
-      background: rgba(255, 160, 60, 0.20);
-      border-radius: 10px;
-      padding: 10px;
-      box-shadow: 0 0 12px rgba(255, 160, 80, 0.35);
+    @keyframes sparks {
+      0%, 100% {
+        opacity: 0.08;
+        transform: translateY(0);
+      }
+      50% {
+        opacity: 0.4;
+        transform: translateY(-3px);
+      }
     }
 
-    /* Participants */
+    .boss-hit {
+      animation: flash 0.25s ease-out;
+    }
+
+    @keyframes flash {
+      0% { background-color: #ff2200; }
+      100% { background-color: #4d1f00; }
+    }
+
+    .timer {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #ffcc99;
+    }
+
+    /* ---- Participants ---- */
+    .participants-card h2 {
+      margin-top: 0;
+      color: #ffddaa;
+      text-shadow: 0 0 6px rgba(255,120,40,0.6);
+    }
+
     .participant-row {
       display: flex;
       justify-content: space-between;
@@ -208,9 +249,128 @@
       color: #ffb38a;
     }
 
+    .participant-bar-outer {
+      background: #7a2d00;
+      height: 12px;
+      width: 120px;
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .participant-bar-inner {
+      background: linear-gradient(90deg, #ff6a00, #ffb347);
+      height: 100%;
+      transform-origin: left;
+      transition: transform 0.4s ease-out;
+    }
+
+    .participant-bar-outer::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 20% 50%, rgba(255,255,255,0.6) 0, transparent 45%),
+        radial-gradient(circle at 70% 40%, rgba(255,210,140,0.6) 0, transparent 50%);
+      mix-blend-mode: screen;
+      opacity: 0.0;
+      filter: blur(0.8px);
+      animation: smallSparks 3.4s ease-in-out infinite;
+    }
+
+    @keyframes smallSparks {
+      0%, 100% {
+        opacity: 0.05;
+        transform: translateY(0);
+      }
+      50% {
+        opacity: 0.3;
+        transform: translateY(-2px);
+      }
+    }
+
     .participant-damage {
       text-align: right;
       color: #ffd9b3;
+    }
+
+    /* ---- Attack card ---- */
+    .attack-card-title {
+      margin-top: 0;
+      color: #ffddaa;
+      text-shadow: 0 0 6px rgba(255,120,40,0.6);
+    }
+
+    .attack-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .attack-row input {
+      background: rgba(10, 2, 0, 0.9);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 160, 80, 0.7);
+      padding: 6px 10px;
+      color: #ffe0c2;
+      min-width: 200px;
+    }
+
+    .attack-row button {
+      border: none;
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(90deg, #cc5500, #ff9a00);
+      color: #2a0500;
+      box-shadow: 0 0 14px rgba(255, 140, 60, 0.7);
+      transition: transform 0.1s ease-out, box-shadow 0.1s ease-out, opacity 0.2s;
+    }
+
+    .attack-row button:disabled {
+      opacity: 0.4;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .attack-row button:active {
+      transform: scale(0.97);
+      box-shadow: 0 0 6px rgba(255, 120, 40, 0.5);
+    }
+
+    .attack-status {
+      margin-top: 8px;
+      font-size: 14px;
+      color: #ffcc99;
+    }
+
+    #last-update {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #ffcc99;
+      text-shadow: 0 0 8px #ff5500;
+    }
+
+    /* 🔥 INDICATEUR DE TOUR */
+    .turn-indicator {
+      margin-top: 5px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffd9b3;
+      text-align: center;
+      text-shadow: 0 0 8px rgba(255, 150, 80, 0.6);
+    }
+
+    /* 🔥 SURBRILLANCE JOUEUR EN COURS */
+    .participant-row.current-turn {
+      background: rgba(255, 160, 60, 0.20);
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 0 12px rgba(255, 160, 80, 0.35);
     }
   </style>
 </head>
@@ -251,11 +411,14 @@
       <div class="timer" id="timer-range"></div>
     </div>
 
-    <!-- ATTACK -->
+    <!-- ATTACK CARD -->
     <div class="attack-card">
       <h2 class="attack-card-title">⚔️ Attaque le boss</h2>
+      <p style="margin:0;font-size:14px;color:#ffcc99;">
+        Renseigne ton <b>ID Discord</b> (le même compte qui a fait <code>/raid_join</code>), puis clique sur <b>Attaquer</b>.
+      </p>
       <div class="attack-row">
-        <input id="user-id-input" placeholder="Ton ID Discord" />
+        <input id="user-id-input" placeholder="Ton ID Discord (numérique)" />
         <button id="attack-button" disabled>⚔️ Attaquer</button>
       </div>
       <div id="attack-status" class="attack-status"></div>
@@ -279,40 +442,195 @@
 
   <div id="last-update"></div>
 
-<script>
-    /* ---------------- FORMATAGE ---------------- */
+  <!-- SCRIPT -->
+  <script>
+    // ⚙️ URL de ton API Render
+    const API_BASE = "https://raid-api-la5d.onrender.com";
+    const STATE_ENDPOINT = API_BASE + "/raid/state";
+    const ATTACK_ENDPOINT = API_BASE + "/raid/attack";
+
+    let prevState = null;
+    let currentUserId = null;
+
+    // Récupère l'ID stocké
+    function loadUserId() {
+      try {
+        const v = localStorage.getItem("raid_user_id");
+        if (v) {
+          currentUserId = v;
+          document.getElementById("user-id-input").value = v;
+        }
+      } catch (e) {}
+      updateAttackButtonState();
+    }
+
+    function saveUserId() {
+      const input = document.getElementById("user-id-input");
+      const val = (input.value || "").trim();
+      if (!val) {
+        currentUserId = null;
+        try { localStorage.removeItem("raid_user_id"); } catch(e){}
+      } else {
+        currentUserId = val;
+        try { localStorage.setItem("raid_user_id", val); } catch(e){}
+      }
+      updateAttackButtonState();
+    }
+
+    function updateAttackButtonState(statusData) {
+      const btn = document.getElementById("attack-button");
+      const status = document.getElementById("attack-status");
+
+      if (!currentUserId) {
+        btn.disabled = true;
+        status.textContent = "Renseigne ton ID Discord pour pouvoir attaquer.";
+        return;
+      }
+      if (!statusData || statusData.status !== "running") {
+        btn.disabled = true;
+        status.textContent = "Aucun raid actif.";
+        return;
+      }
+
+      // 🔁 contrôle du tour
+      if (statusData.current_turn && currentUserId) {
+        if (String(statusData.current_turn) !== String(currentUserId)) {
+          btn.disabled = true;
+          status.textContent = "Ce n'est pas ton tour. Patiente…";
+          return;
+        }
+      }
+
+      btn.disabled = false;
+      status.textContent = "C'est ton tour ! Clique sur Attaquer.";
+    }
+
     function formatNumber(n) {
       return (n || 0).toLocaleString("fr-FR");
     }
 
-    /* ---------------- PARTICIPANTS + TOUR ---------------- */
+    function starsLabel(stars) {
+      stars = Number(stars) || 0;
+      const s = "⭐".repeat(Math.max(1, Math.min(7, stars)));
+      switch (stars) {
+        case 2: return s + " (Facile)";
+        case 3: return s + " (Normal)";
+        case 4: return s + " (Difficile)";
+        case 5: return s + " (Expert)";
+        case 6: return s + " (Légendaire)";
+        case 7: return s + " (Mythique)";
+        default: return s;
+      }
+    }
+
+    function formatTimer(startTs, endTs, status) {
+      const now = Date.now() / 1000;
+      if (!startTs || !endTs) return "";
+      const remaining = endTs - now;
+      if (status === "finished" || remaining <= 0) return "⏱ Terminé";
+      const total = endTs - startTs;
+      return `⏱ ${Math.round((now-startTs)/60)} min / ${Math.round(total/60)} min`;
+    }
+
+    function updateBossView(data) {
+      const bossNameEl = document.getElementById("boss-name");
+      const bossStarsEl = document.getElementById("boss-stars");
+      const hpTextEl = document.getElementById("hp-text");
+      const hpFillEl = document.getElementById("hp-fill");
+      const hpWrapperEl = document.getElementById("hp-wrapper");
+      const timerStatusEl = document.getElementById("timer-status");
+      const timerRangeEl = document.getElementById("timer-range");
+      const diffLabelEl = document.getElementById("difficulty-label");
+      const bossImgEl = document.getElementById("boss-image");
+
+      if (!data || data.status !== "running") {
+        bossNameEl.textContent = "Aucun raid actif";
+        bossStarsEl.textContent = "";
+        hpTextEl.textContent = "0 / 0";
+        hpFillEl.style.transform = "scaleX(0)";
+        diffLabelEl.textContent = "";
+        timerStatusEl.textContent = "Le raid est terminé ou inactif.";
+        timerRangeEl.textContent = "";
+        if (bossImgEl) {
+          bossImgEl.src = "";
+          bossImgEl.style.opacity = "0.0";
+        }
+        return;
+      }
+
+      const bossName = data.boss || "Boss";
+      const hpCur = Number(data.hp_current) || 0;
+      const hpMax = Math.max(1, Number(data.hp_max) || 1);
+      const stars = Number(data.stars) || 0;
+
+      bossNameEl.textContent = bossName;
+      bossStarsEl.textContent = "⭐".repeat(stars);
+
+      // Image du boss: assets/<ID>.png
+      if (bossImgEl && data.boss) {
+        const imgPath = `assets/${data.boss}.png`;
+        bossImgEl.style.opacity = "0.0";
+        bossImgEl.src = imgPath;
+        bossImgEl.onload = () => {
+          bossImgEl.style.opacity = "1";
+        };
+        bossImgEl.onerror = () => {
+          bossImgEl.style.opacity = "0.0";
+        };
+      }
+
+      hpTextEl.textContent = `${formatNumber(hpCur)} / ${formatNumber(hpMax)}`;
+      hpFillEl.style.transform = `scaleX(${Math.max(0, Math.min(1, hpCur/hpMax))})`;
+
+      diffLabelEl.textContent = starsLabel(stars);
+
+      timerStatusEl.textContent = formatTimer(data.start, data.end, data.status);
+      if (data.start && data.end) {
+        timerRangeEl.textContent =
+          `Du ${new Date(data.start*1000).toLocaleString("fr-FR")} au ${new Date(data.end*1000).toLocaleString("fr-FR")}`;
+      } else {
+        timerRangeEl.textContent = "";
+      }
+
+      // Animation si le boss perd des HP
+      if (prevState && prevState.hp_current > hpCur) {
+        hpWrapperEl.classList.remove("boss-hit");
+        void hpWrapperEl.offsetWidth;
+        hpWrapperEl.classList.add("boss-hit");
+      }
+    }
+
     function updateParticipantsView(data) {
       const listEl = document.getElementById("participants-list");
       const emptyEl = document.getElementById("participants-empty");
       const countEl = document.getElementById("participants-count");
       const turnIndEl = document.getElementById("turn-indicator");
 
-      const participants = data.participants || [];
-      const currentTurn = data.current_turn;
+      const participants = Array.isArray(data.participants) ? data.participants : [];
+      const currentTurn = data.current_turn || null;
 
       if (participants.length === 0) {
         listEl.innerHTML = "";
         emptyEl.style.display = "block";
         countEl.textContent = "0 joueurs";
-        turnIndEl.textContent = "Tour de : —";
+        if (turnIndEl) turnIndEl.textContent = "Tour de : —";
         return;
       }
 
       emptyEl.style.display = "none";
       countEl.textContent = `${participants.length} joueurs`;
 
-      let currentName = "—";
+      // Joueur dont c'est le tour
+      let currentName = null;
       if (currentTurn) {
-        const cur = participants.find(p => p.user_id == currentTurn);
-        if (cur) currentName = cur.name;
+        const cur = participants.find(p => String(p.user_id) === String(currentTurn));
+        if (cur) currentName = cur.name || cur.user_id;
       }
-
-      turnIndEl.textContent = "Tour de : " + currentName;
+      if (turnIndEl) {
+        turnIndEl.textContent = currentName
+          ? `Tour de : ${currentName}`
+          : "Tour de : —";
+      }
 
       listEl.innerHTML = "";
       participants.sort((a,b)=>b.damage - a.damage);
@@ -323,8 +641,8 @@
         const row = document.createElement("div");
         row.classList.add("participant-row");
 
-        /* AJOUT : surbrillance joueur courant */
-        if (String(p.user_id) === String(currentTurn)) {
+        const isCurrent = currentTurn && String(currentTurn) === String(p.user_id);
+        if (isCurrent) {
           row.classList.add("current-turn");
         }
 
@@ -336,15 +654,98 @@
 
         const col2 = document.createElement("div");
         col2.className = "participant-damage";
-        col2.textContent = `${formatNumber(p.damage)} dmg`;
+        const barOuter = document.createElement("div");
+        barOuter.className = "participant-bar-outer";
+        const barInner = document.createElement("div");
+        barInner.className = "participant-bar-inner";
+        barInner.style.transform = `scaleX(${p.damage/max})`;
+
+        barOuter.appendChild(barInner);
+        col2.innerHTML = `${formatNumber(p.damage)} dmg`;
+        col2.appendChild(barOuter);
 
         row.appendChild(col1);
         row.appendChild(col2);
-
         listEl.appendChild(row);
       }
     }
-</script>
+
+    function updateStatusPill(data) {
+      const pill = document.getElementById("status-pill");
+      const text = document.getElementById("status-text");
+
+      pill.classList.remove("status-idle","status-running","status-finished");
+
+      if (!data) {
+        pill.classList.add("status-idle");
+        text.textContent = "Aucun raid";
+      } else if (data.status === "running") {
+        pill.classList.add("status-running");
+        text.textContent = "Raid en cours";
+      } else if (data.status === "finished") {
+        pill.classList.add("status-finished");
+        text.textContent = "Raid terminé";
+      } else {
+        pill.classList.add("status-idle");
+        text.textContent = "Aucun raid";
+      }
+    }
+
+    function setLastUpdate() {
+      document.getElementById("last-update").textContent =
+        "Dernière mise à jour : " + new Date().toLocaleTimeString("fr-FR");
+    }
+
+    async function fetchRaidState() {
+      let data = null;
+      try {
+        const res = await fetch(STATE_ENDPOINT+"?t="+Date.now());
+        data = await res.json();
+        updateBossView(data);
+        updateParticipantsView(data);
+        updateStatusPill(data);
+        prevState = data;
+      } catch (e) {
+        console.error("Erreur API:", e);
+      }
+      setLastUpdate();
+      updateAttackButtonState(data || {status:"idle"});
+    }
+
+    async function sendAttack() {
+      const status = document.getElementById("attack-status");
+      if (!currentUserId) {
+        status.textContent = "Merci de renseigner ton ID Discord.";
+        return;
+      }
+      status.textContent = "Envoi de ton attaque...";
+      try {
+        const res = await fetch(ATTACK_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: currentUserId })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(()=>({}));
+          status.textContent = err.detail || "Erreur lors de l'attaque.";
+          return;
+        }
+        status.textContent = "✅ Attaque envoyée ! (si tu es inscrit au raid)";
+      } catch (e) {
+        console.error(e);
+        status.textContent = "Erreur réseau lors de l'attaque.";
+      }
+    }
+
+    // Events
+    document.getElementById("user-id-input").addEventListener("change", saveUserId);
+    document.getElementById("attack-button").addEventListener("click", sendAttack);
+
+    // Init
+    loadUserId();
+    fetchRaidState();
+    setInterval(fetchRaidState, 2000);
+  </script>
 
 </body>
 </html>
