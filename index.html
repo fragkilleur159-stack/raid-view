@@ -418,7 +418,7 @@
         Renseigne ton <b>ID Discord</b> (le même compte qui a fait <code>/raid_join</code>), puis clique sur <b>Attaquer</b>.
       </p>
       <div class="attack-row">
-        <input id="user-id-input" placeholder="Ton ID Discord (numérique)" />
+        <input id="user-name-input" placeholder="Ton pseudo Discord (ex: Pseudo#0000)" />
         <button id="attack-button" disabled>⚔️ Attaquer</button>
       </div>
       <div id="attack-status" class="attack-status"></div>
@@ -464,16 +464,36 @@
       updateAttackButtonState();
     }
 
-    function saveUserId() {
-      const input = document.getElementById("user-id-input");
+    async function saveUserName() {
+      const input = document.getElementById("user-name-input");
       const val = (input.value || "").trim();
+
       if (!val) {
         currentUserId = null;
-        try { localStorage.removeItem("raid_user_id"); } catch(e){}
-      } else {
-        currentUserId = val;
-        try { localStorage.setItem("raid_user_id", val); } catch(e){}
+        localStorage.removeItem("raid_user_name");
+        localStorage.removeItem("raid_user_id");
+        updateAttackButtonState();
+        return;
       }
+
+      // On garde le pseudo
+      localStorage.setItem("raid_user_name", val);
+
+      // On va chercher l'ID associé
+      const resolved = await resolveUserIdFromName(val);
+
+      if (!resolved) {
+        currentUserId = null;
+        localStorage.removeItem("raid_user_id");
+        document.getElementById("attack-status").textContent =
+          "❌ Joueur introuvable dans le raid. Assure-toi d'avoir fait /raid_join.";
+      } else {
+        currentUserId = resolved;
+        localStorage.setItem("raid_user_id", resolved);
+        document.getElementById("attack-status").textContent =
+          "✅ Joueur reconnu : " + val;
+      }
+
       updateAttackButtonState();
     }
 
@@ -749,8 +769,20 @@
       }
     }
 
+
+    
+    async function resolveUserIdFromName(name) {
+      const url = API_BASE + "/raid/resolve_user?name=" + encodeURIComponent(name);
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.user_id) return data.user_id;
+      } catch(e) {}
+      return null;
+    }
+
     // Events
-    document.getElementById("user-id-input").addEventListener("change", saveUserId);
+    document.getElementById("user-name-input").addEventListener("change", saveUserName);
     document.getElementById("attack-button").addEventListener("click", sendAttack);
 
     // Init
@@ -761,4 +793,5 @@
 
 </body>
 </html>
+
 
