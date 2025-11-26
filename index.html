@@ -47,6 +47,79 @@
       }
     }
 
+    /* Variantes de couleur pour les types de coups */
+    .damage-popup.normal {
+      color: #ffd9b3;
+    }
+    .damage-popup.crit {
+      color: #fffbcc;
+      text-shadow:
+        0 0 6px #ffe066,
+        0 0 14px rgba(255, 180, 80, 0.9);
+    }
+    .damage-popup.special {
+      color: #ffe6ff;
+      text-shadow:
+        0 0 6px #ff66aa,
+        0 0 14px rgba(255, 80, 140, 0.9);
+    } 
+
+    /* Flash rouge quand le boss attaque (overlay fullscreen) */
+    .boss-attack-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(255,0,0,0.55), transparent 70%);
+      pointer-events: none;
+      animation: bossAttackFlash 0.6s ease-out forwards;
+      z-index: 50;
+    }
+
+    @keyframes bossAttackFlash {
+      0% { opacity: 0.8; }
+      100% { opacity: 0; }
+    }
+
+    /* Log des derniers coups */
+    .hit-log-card {
+      margin-top: 15px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 150, 80, 0.25);
+      font-size: 13px;
+    }
+
+    .hit-log-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #ffddaa;
+    }
+
+    .hit-log-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+      opacity: 0.9;
+    }
+
+    .hit-log-row span.hit-name {
+      color: #ffe0c2;
+    }
+    .hit-log-row span.hit-dmg {
+      font-weight: 600;
+    }    
+    .hit-log-row.normal span.hit-dmg {
+      color: #ffb36b;
+    }
+    .hit-log-row.crit span.hit-dmg {
+      color: #ffe066;
+    }
+    .hit-log-row.special span.hit-dmg {
+      color: #ff7abf;
+    }
+    .hit-log-row.boss span.hit-name {
+      color: #ff8080;
+    }
+
+
     
     body {
       margin: 0;
@@ -479,8 +552,12 @@
       <div id="participants-empty" style="text-align:center; padding: 10px; color:#aaa; display:none;">
         Aucun joueur pour le moment…
       </div>
+       <!-- 🔥 Log des derniers coups -->
+      <div class="hit-log-card">
+        <div class="hit-log-title">Derniers coups</div>
+        <div id="hit-log-list"></div>
+      </div>
     </div>
-  </div>
 
   <div id="last-update"></div>
 
@@ -493,6 +570,51 @@
 
     let prevState = null;
     let currentUserId = null;
+    let hitLog = [];
+
+
+
+    // Classement du type de coup selon la taille des dégâts
+    function classifyHit(dmg, hpMax) {
+      const ratio = dmg / Math.max(1, hpMax);
+      if (ratio > 0.20) return "special"; // très gros coup
+      if (ratio > 0.05) return "crit";    // gros coup
+      return "normal";                    // petit coup
+    }
+
+    function updateHitLogView() {
+      const list = document.getElementById("hit-log-list");
+      if (!list) return;
+      list.innerHTML = "";
+
+      hitLog.forEach(entry => {
+        const row = document.createElement("div");
+        row.className = "hit-log-row " + (entry.kind || "");
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "hit-name";
+        nameSpan.textContent = entry.type === "boss"
+          ? "Boss"
+          : (entry.name || "Joueur");
+
+        const dmgSpan = document.createElement("span");
+        dmgSpan.className = "hit-dmg";
+        dmgSpan.textContent = entry.type === "boss"
+          ? "attaque !"
+          : `-${formatNumber(entry.damage)} dmg`;
+
+        row.appendChild(nameSpan);
+        row.appendChild(dmgSpan);
+        list.appendChild(row);
+      });
+    }
+
+    function triggerBossAttackFlash() {
+      const overlay = document.createElement("div");
+      overlay.className = "boss-attack-overlay";
+      document.body.appendChild(overlay);
+      setTimeout(() => overlay.remove(), 600);
+    }
 
     // Récupère l'ID stocké
     function loadUserId() {
@@ -654,11 +776,11 @@
         timerRangeEl.textContent = "";
       }
 
-      // Animation si le boss perd des HP
+            // Animation si le boss perd des HP
       if (prevState && prevState.hp_current > hpCur) {
         const diff = prevState.hp_current - hpCur;
 
-        // 1) flash sur la barre de PV (déjà existant)
+        // 1) flash sur la barre de PV
         hpWrapperEl.classList.remove("boss-hit");
         void hpWrapperEl.offsetWidth;
         hpWrapperEl.classList.add("boss-hit");
@@ -671,20 +793,61 @@
           bossImgWrapper.classList.add("hit");
         }
 
-        // 3) popup de dégâts au-dessus de la barre
+        // 3) popup de dégâts colorée
         if (diff > 0) {
+          const kind = classifyHit(diff, hpMax); // normal / crit / special
           const popup = document.createElement("div");
-          popup.className = "damage-popup";
+          popup.className = "damage-popup " + kind;
           popup.textContent = "-" + formatNumber(diff);
 
           hpWrapperEl.appendChild(popup);
 
-          // On retire le popup après l'animation
-          setTimeout(() => {
-            popup.remove();
-          }, 900);
+          setTimeout(() => popup.remove(), 900);
+
+          // 4) ajout au log des coups (coup du joueur)
+          let attackerName = null;
+          const attackerId = prevState.current_turn;
+          if (attackerId && Array.isArray(data.participants)) {
+            const p = data.participants.find(pp => String(pp.user_id) === String(attackerId));
+            if (p) attackerName = p.name;
+          }
+
+          hitLog.unshift({
+            type: "player",
+            name: attackerName || "Joueur inconnu",
+            damage: diff,
+            ts: Date.now(),
+            kind: kind,
+          });
+          hitLog = hitLog.slice(0, 8); // on garde les 8 derniers
+          updateHitLogView();
         }
       }
+
+      // Détection approximative d'une "attaque du boss" :
+      // si le tour change, mais que les PV du boss n'ont pas bougé.
+      if (
+        prevState &&
+        prevState.current_turn &&
+        data.current_turn &&
+        prevState.current_turn !== data.current_turn &&
+        prevState.hp_current === hpCur
+      ) {
+        // flash rouge plein écran
+        triggerBossAttackFlash();
+
+        // log de l'attaque du boss
+        hitLog.unshift({
+          type: "boss",
+          name: "Boss",
+          damage: 0,
+          ts: Date.now(),
+          kind: "boss",
+        });
+        hitLog = hitLog.slice(0, 8);
+        updateHitLogView();
+      }
+
 
     function updateParticipantsView(data) {
       const listEl = document.getElementById("participants-list");
@@ -859,6 +1022,7 @@
 
 </body>
 </html>
+
 
 
 
