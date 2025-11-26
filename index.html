@@ -1052,13 +1052,12 @@
           const atk = data.last_boss_attack; // { target, damage, type }
 
           hitLog.unshift({
-            type: "boss",
-            name: "Boss",
-            damage: atk.damage,
-            ts: Date.now(),
-            // "normal" | "crit" | "ultimate"
-            kind: atk.type || "normal",
-          });
+          type: "boss",
+          name: "Boss → " + (p.name || "???"),
+          damage: diff,
+          ts: Date.now(),
+          kind: kind // normal | crit | ultimate
+        });
           hitLog = hitLog.slice(0, 8);
           updateHitLogView();
         }
@@ -1155,6 +1154,7 @@ setDynamicRefresh("idle");
 
 </body>
 </html>
+
 
 
 
