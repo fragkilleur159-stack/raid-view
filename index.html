@@ -487,6 +487,35 @@
       padding: 10px;
       box-shadow: 0 0 12px rgba(255, 160, 80, 0.35);
     }
+
+    /* 💀 Pets K.O. (morts) */
+    .participant-row.dead {
+      opacity: 0.55;
+      filter: grayscale(0.9);
+    }
+
+    .participant-row.dead .participant-name,
+    .participant-row.dead .participant-pet,
+    .participant-row.dead .participant-hp-text,
+    .participant-row.dead .participant-damage {
+      color: #888 !important;
+      text-decoration: line-through;
+    }
+
+    .participant-hp-text {
+      font-size: 12px;
+      margin-top: 2px;
+      color: #ffddb8;
+    }
+
+    .participant-row.dead .participant-hp-bar .participant-bar-inner {
+      transform: scaleX(0) !important;
+    }
+
+    .participant-ko-label {
+      font-weight: 700;
+    }
+
   </style>
 </head>
 
@@ -910,46 +939,54 @@
 
       let max = participants[0]?.damage || 1;
 
-      for (let p of participants) {
-        const row = document.createElement("div");
-        row.classList.add("participant-row");
+            for (let p of participants) {
+                const row = document.createElement("div");
+                row.classList.add("participant-row");
 
-        const isCurrent = currentTurn && String(currentTurn) === String(p.user_id);
-        if (isCurrent) {
-          row.classList.add("current-turn");
-        }
+                // ✅ on récupère les HP si l'API les envoie (sinon 0)
+                const hpCur = p.hp_current || 0;
+                const hpMax = p.hp_max || 0;
+                const isDead = (hpMax > 0 && hpCur <= 0) || p.alive === false;
 
-        const hpCur = p.hp_current || 0;
-        const hpMax = p.hp_max || 1;
-        const hpRatio = Math.max(0, Math.min(1, hpCur / hpMax));
+                if (isDead) {
+                  row.classList.add("dead");
+                }
 
-        const col1 = document.createElement("div");
-        col1.innerHTML = `
-          <div class="participant-name">${p.name}</div>
-          <div class="participant-pet">${p.pet}</div>
-          <div class="participant-hp-text">${formatNumber(hpCur)} / ${formatNumber(hpMax)} HP</div>
-          <div class="participant-bar-outer participant-hp-bar">
-            <div class="participant-bar-inner" style="transform: scaleX(${hpRatio});"></div>
-          </div>
-        `;
+                // Nom + crâne si mort
+                const nameHtml = isDead
+                  ? `<div class="participant-name dead-name">💀 ${p.name}</div>`
+                  : `<div class="participant-name">${p.name}</div>`;
 
-        const col2 = document.createElement("div");
-        col2.className = "participant-damage";
-        const barOuter = document.createElement("div");
-        barOuter.className = "participant-bar-outer";
-        const barInner = document.createElement("div");
-        barInner.className = "participant-bar-inner";
-        barInner.style.transform = `scaleX(${p.damage/max})`;
+                // Pet + HP / K.O.
+                let petHtml = `<div class="participant-pet">${p.pet}</div>`;
+                if (hpMax > 0) {
+                  if (isDead) {
+                    petHtml += `<div class="participant-hp ko">K.O.</div>`;
+                  } else {
+                    petHtml += `<div class="participant-hp">${formatNumber(hpCur)} / ${formatNumber(hpMax)} HP</div>`;
+                  }
+                }
 
-        barOuter.appendChild(barInner);
-        col2.innerHTML = `${formatNumber(p.damage)} dmg`;
-        col2.appendChild(barOuter);
+                const col1 = document.createElement("div");
+                col1.innerHTML = nameHtml + petHtml;
 
-        row.appendChild(col1);
-        row.appendChild(col2);
-        listEl.appendChild(row);
-      }
-    }
+                const col2 = document.createElement("div");
+                col2.className = "participant-damage";
+                const barOuter = document.createElement("div");
+                barOuter.className = "participant-bar-outer";
+                const barInner = document.createElement("div");
+                barInner.className = "participant-bar-inner";
+                barInner.style.transform = `scaleX(${p.damage/max})`;
+
+                barOuter.appendChild(barInner);
+                col2.innerHTML = `${formatNumber(p.damage)} dmg`;
+                col2.appendChild(barOuter);
+
+                row.appendChild(col1);
+                row.appendChild(col2);
+                listEl.appendChild(row);
+              }
+            }
 
     function updateStatusPill(data) {
       const pill = document.getElementById("status-pill");
@@ -1054,6 +1091,7 @@
 
 </body>
 </html>
+
 
 
 
