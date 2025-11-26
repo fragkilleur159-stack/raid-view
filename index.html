@@ -726,7 +726,7 @@
       const timerRangeEl = document.getElementById("timer-range");
       const diffLabelEl = document.getElementById("difficulty-label");
       const bossImgEl = document.getElementById("boss-image");
-    }  
+      
 
       if (!data || data.status !== "running") {
         bossNameEl.textContent = "Aucun raid actif";
@@ -848,7 +848,7 @@
         hitLog = hitLog.slice(0, 8);
         updateHitLogView();
       }
-
+    }
 
     function updateParticipantsView(data) {
       const listEl = document.getElementById("participants-list");
@@ -1023,6 +1023,7 @@
 
 </body>
 </html>
+
 
 
 
