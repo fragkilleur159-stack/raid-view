@@ -1023,6 +1023,10 @@
         updateParticipantsView(data);
         updateStatusPill(data);
         prevState = data;
+        // Adaptation dynamique du refresh
+        if (data && data.status) {
+          setDynamicRefresh(data.status);
+        }
       } catch (e) {
         console.error("Erreur API:", e);
       }
@@ -1086,11 +1090,29 @@
     // Init
     loadUserId();
     fetchRaidState();
-    setInterval(fetchRaidState, 1000);
+    let refreshInterval = null;
+
+    function setDynamicRefresh(status) {
+      // On supprime l'ancien interval s'il existe
+      if (refreshInterval) clearInterval(refreshInterval);
+
+      if (status === "running") {
+        // Pendant un raid → refresh rapide
+        refreshInterval = setInterval(fetchRaidState, 1000);
+      } else {
+        // Raid terminé ou inactif → refresh lent
+        refreshInterval = setInterval(fetchRaidState, 5000);
+      }
+    }
+
+// On initialise
+fetchRaidState();
+setDynamicRefresh("idle");
   </script>
 
 </body>
 </html>
+
 
 
 
