@@ -6,6 +6,48 @@
   <title>🔥 Raid Au Coin Du Feu</title>
 
   <style>
+    /* Boss qui tremble quand il se fait toucher */
+    .boss-image-wrapper.hit {
+      animation: bossShake 0.35s ease-out;
+    }
+
+    @keyframes bossShake {
+      0%   { transform: translateX(0); }
+      20%  { transform: translateX(-4px); }
+      40%  { transform: translateX(4px); }
+      60%  { transform: translateX(-3px); }
+      80%  { transform: translateX(3px); }
+      100% { transform: translateX(0); }
+    }
+
+    /* Texte de dégâts qui flotte au-dessus de la barre de vie */
+    .damage-popup {
+      position: absolute;
+      left: 50%;
+      top: -4px;
+      transform: translateX(-50%);
+      font-size: 16px;
+      font-weight: 800;
+      color: #ffe6dd;
+      text-shadow:
+        0 0 4px #ff4500,
+        0 0 10px rgba(0, 0, 0, 0.9);
+      pointer-events: none;
+      animation: dmgFloat 0.9s ease-out forwards;
+    }
+
+    @keyframes dmgFloat {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -35px) scale(1.1);
+      }
+    }
+
+    
     body {
       margin: 0;
       padding: 0;
@@ -614,11 +656,35 @@
 
       // Animation si le boss perd des HP
       if (prevState && prevState.hp_current > hpCur) {
+        const diff = prevState.hp_current - hpCur;
+
+        // 1) flash sur la barre de PV (déjà existant)
         hpWrapperEl.classList.remove("boss-hit");
         void hpWrapperEl.offsetWidth;
         hpWrapperEl.classList.add("boss-hit");
+
+        // 2) shake sur l'image du boss
+        const bossImgWrapper = document.querySelector(".boss-image-wrapper");
+        if (bossImgWrapper) {
+          bossImgWrapper.classList.remove("hit");
+          void bossImgWrapper.offsetWidth;
+          bossImgWrapper.classList.add("hit");
+        }
+
+        // 3) popup de dégâts au-dessus de la barre
+        if (diff > 0) {
+          const popup = document.createElement("div");
+          popup.className = "damage-popup";
+          popup.textContent = "-" + formatNumber(diff);
+
+          hpWrapperEl.appendChild(popup);
+
+          // On retire le popup après l'animation
+          setTimeout(() => {
+            popup.remove();
+          }, 900);
+        }
       }
-    }
 
     function updateParticipantsView(data) {
       const listEl = document.getElementById("participants-list");
@@ -793,6 +859,7 @@
 
 </body>
 </html>
+
 
 
 
