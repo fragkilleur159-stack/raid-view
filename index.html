@@ -681,6 +681,23 @@
         status.textContent = "Aucun raid actif.";
         return;
       }
+      // 🔎 trouver mon enregistrement de participant
+      const me = (statusData.participants || []).find(
+        p => String(p.user_id) === String(currentUserId)
+      );
+      if (!me) {
+        btn.disabled = true;
+        status.textContent = "Tu n'es pas inscrit au raid (/raid_join).";
+        return;
+      }
+      // 🔒 si mon pet est K.O. -> plus d'attaque
+      if (me.hp_current !== undefined && me.hp_max !== undefined) {
+        if (me.hp_max > 0 && me.hp_current <= 0) {
+          btn.disabled = true;
+          status.textContent = "Ton familier est K.O., tu ne peux plus attaquer dans ce raid.";
+          return;
+        }
+      }
 
       // 🔁 contrôle du tour
       if (statusData.current_turn && currentUserId) {
@@ -1037,6 +1054,7 @@
 
 </body>
 </html>
+
 
 
 
