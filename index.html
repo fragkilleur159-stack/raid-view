@@ -631,13 +631,15 @@
 
 
 
-    // Classement du type de coup selon la taille des dégâts
-    function classifyHit(dmg, hpMax) {
-      const ratio = dmg / Math.max(1, hpMax);
-      if (ratio > 0.20) return "special"; // très gros coup
-      if (ratio > 0.05) return "crit";    // gros coup
-      return "normal";                    // petit coup
+    // Base de dégâts pour un coup "normal" (à adapter si tu changes le raid)
+    const BASE_DAMAGE = 150;
+
+    function classifyHit(dmg) {
+      if (dmg >= BASE_DAMAGE * 3) return "ultimate"; // très gros coup
+      if (dmg >= BASE_DAMAGE * 2) return "crit";     // coup critique
+      return "normal";                               // coup normal
     }
+
 
     function updateHitLogView() {
       const list = document.getElementById("hit-log-list");
@@ -646,19 +648,21 @@
 
       hitLog.forEach(entry => {
         const row = document.createElement("div");
-        row.className = "hit-log-row " + (entry.kind || "");
+        row.className = "hit-log-row " + (entry.kind || "normal");
+
+        if (entry.type === "boss") {
+          row.classList.add("boss");
+        }
 
         const nameSpan = document.createElement("span");
         nameSpan.className = "hit-name";
         nameSpan.textContent = entry.type === "boss"
-          ? "Boss"
+          ? entry.name || "Boss"
           : (entry.name || "Joueur");
 
         const dmgSpan = document.createElement("span");
         dmgSpan.className = "hit-dmg";
-        dmgSpan.textContent = entry.type === "boss"
-          ? "attaque !"
-          : `-${formatNumber(entry.damage)} dmg`;
+        dmgSpan.textContent = `-${formatNumber(entry.damage)} dmg`;
 
         row.appendChild(nameSpan);
         row.appendChild(dmgSpan);
@@ -876,7 +880,7 @@
 
         // 3) popup de dégâts colorée
         if (diff > 0) {
-          const kind = classifyHit(diff, hpMax); // normal / crit / special
+          const kind = classifyHit(diff); // normal / crit / ultimate
           const popup = document.createElement("div");
           popup.className = "damage-popup " + kind;
           popup.textContent = "-" + formatNumber(diff);
@@ -1044,27 +1048,56 @@
 
     async function fetchRaidState() {
       let data = null;
-      try {
-        const res = await fetch(STATE_ENDPOINT+"?t="+Date.now());
-        data = await res.json();
-        // 🔥 NOUVEAU : log des attaques du boss si l'API renvoie last_boss_attack
-        if (data.last_boss_attack) {
-          const atk = data.last_boss_attack; // { target, damage, type }
+      const previous = prevState; // on garde l'ancien état pour comparer
 
-          hitLog.unshift({
-          type: "boss",
-          name: "Boss → " + (p.name || "???"),
-          damage: diff,
-          ts: Date.now(),
-          kind: kind // normal | crit | ultimate
-        });
-          hitLog = hitLog.slice(0, 8);
-          updateHitLogView();
+      try {
+        const res = await fetch(STATE_ENDPOINT + "?t=" + Date.now());
+        data = await res.json();
+
+        // 🔥 Détection des attaques du boss : on regarde les HP des pets
+        if (previous && Array.isArray(previous.participants) && Array.isArray(data.participants)) {
+          const oldById = {};
+          for (const p of previous.participants) {
+            oldById[String(p.user_id)] = p;
+          }
+
+          let bossDidSomething = false;
+
+          for (const p of data.participants) {
+            const old = oldById[String(p.user_id)];
+            if (!old) continue;
+
+            const oldHp = old.hp_current || 0;
+            const newHp = p.hp_current || 0;
+
+            if (oldHp > newHp) {
+              const diff = oldHp - newHp;
+              const kind = classifyHit(diff); // normal / crit / ultimate
+
+              hitLog.unshift({
+                type: "boss",
+                name: `Boss → ${p.name || "???"} `,
+                damage: diff,
+                ts: Date.now(),
+                kind: kind,
+              });
+              bossDidSomething = true;
+            }
+          }
+
+          if (bossDidSomething) {
+            hitLog = hitLog.slice(0, 8);
+            updateHitLogView();
+            triggerBossAttackFlash(); // petit flash rouge quand le boss frappe
+          }
         }
+
+        // 🔁 mise à jour classique de l'affichage
         updateBossView(data);
         updateParticipantsView(data);
         updateStatusPill(data);
         prevState = data;
+
         // Adaptation dynamique du refresh
         if (data && data.status) {
           setDynamicRefresh(data.status);
@@ -1073,8 +1106,9 @@
         console.error("Erreur API:", e);
       }
       setLastUpdate();
-      updateAttackButtonState(data || {status:"idle"});
+      updateAttackButtonState(data || { status: "idle" });
     }
+
 
     async function sendAttack() {
       const status = document.getElementById("attack-status");
@@ -1154,6 +1188,7 @@ setDynamicRefresh("idle");
 
 </body>
 </html>
+
 
 
 
