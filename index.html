@@ -619,12 +619,18 @@
     // Récupère l'ID stocké
     function loadUserId() {
       try {
-        const v = localStorage.getItem("raid_user_id");
-        if (v) {
-          currentUserId = v;
-          document.getElementById("user-id-input").value = v;
+        const storedName = localStorage.getItem("raid_user_name");
+        const storedId = localStorage.getItem("raid_user_id");
+
+        const input = document.getElementById("user-name-input");
+        if (storedName && input) {
+          input.value = storedName;
+        }
+        if (storedId) {
+          currentUserId = storedId;
         }
       } catch (e) {}
+
       updateAttackButtonState();
     }
 
@@ -1023,6 +1029,7 @@
 
 </body>
 </html>
+
 
 
 
