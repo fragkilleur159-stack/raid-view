@@ -899,19 +899,32 @@ async function sendChatMessage() {
 
         const nameSpan = document.createElement("span");
         nameSpan.className = "hit-name";
-        nameSpan.textContent = entry.type === "boss"
-          ? entry.name || "Boss"
-          : (entry.name || "Joueur");
 
         const dmgSpan = document.createElement("span");
         dmgSpan.className = "hit-dmg";
-        dmgSpan.textContent = `-${formatNumber(entry.damage)} dmg`;
+
+        if (entry.type === "boss") {
+          nameSpan.textContent = entry.name || "Boss";
+          dmgSpan.textContent = `-${formatNumber(entry.damage)} dmg`;
+        } else if (entry.type === "item") {
+          // 🔥 Affichage spécial pour un objet utilisé
+          nameSpan.textContent = entry.name || "Joueur";
+          const itemId = entry.item_id || "Objet";
+          const val = entry.damage || 0;
+          // On affiche le nom technique + la valeur pour l'instant
+          dmgSpan.textContent = `${itemId} (${val > 0 ? "+" + formatNumber(val) : formatNumber(val)})`;
+        } else {
+          // Coup classique d'un joueur
+          nameSpan.textContent = entry.name || "Joueur";
+          dmgSpan.textContent = `-${formatNumber(entry.damage)} dmg`;
+        }
 
         row.appendChild(nameSpan);
         row.appendChild(dmgSpan);
         list.appendChild(row);
       });
     }
+
 
     function triggerBossAttackFlash() {
       const overlay = document.createElement("div");
@@ -1550,6 +1563,7 @@ async function sendChatMessage() {
 
 </body>
 </html>
+
 
 
 
