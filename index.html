@@ -910,42 +910,20 @@ const RAID_ITEM_DISPLAY = {
         dmgSpan.className = "hit-dmg";
 
         if (entry.type === "boss") {
-          // Attaque du boss
           nameSpan.textContent = entry.name || "Boss";
           dmgSpan.textContent = `-${formatNumber(entry.damage)} dmg`;
         } else if (entry.type === "item") {
-           // ✅ Utilisation d'objet
           nameSpan.textContent = entry.name || "Joueur";
 
-          // 1) Cas des logs venant du serveur (avec item_id + damage)
-          if (entry.item_id) {
-            const meta = RAID_ITEM_DISPLAY[entry.item_id] || {};
-            const label = meta.label || entry.item_id || "Objet";
-            const kind = meta.type || "generic";
-            const val = entry.damage || 0;
-
-            let text = `utilise ${label}`;
-            if (val) {
-              if (kind === "heal_pet") {
-                text += ` (+${formatNumber(val)} PV)`;
-              } else if (kind === "damage_boss") {
-                text += ` (-${formatNumber(val)} dégâts au boss)`;
-              } else {
-                text += ` (${val > 0 ? "+" + formatNumber(val) : formatNumber(val)})`;
-              }
-            }
-
-            dmgSpan.textContent = text;
-
-          // 2) Cas des vieux logs locaux qui ont juste un message
-          } else if (entry.message) {
+          if (entry.message) {
+            // ex: "utilise potion_pet_grosse (+1200 PV)"
             dmgSpan.textContent = entry.message;
-
-          // 3) Fallback
           } else {
-            dmgSpan.textContent = "utilise un objet";
+            const itemId = entry.item_id || "Objet";
+            const val = entry.damage || 0;
+            dmgSpan.textContent =
+              `${itemId} (${val > 0 ? "+" + formatNumber(val) : formatNumber(val)})`;
           }
-
         } else {
           // Coup classique d'un joueur
           nameSpan.textContent = entry.name || "Joueur";
@@ -957,6 +935,7 @@ const RAID_ITEM_DISPLAY = {
         list.appendChild(row);
       });
     }
+
 
     function triggerBossAttackFlash() {
       const overlay = document.createElement("div");
@@ -1356,59 +1335,81 @@ const RAID_ITEM_DISPLAY = {
           }
         }
 
-        // 🔁 mise à jour classique de l'affichage
-        updateBossView(data);
-        updateParticipantsView(data);
-        updateStatusPill(data);
+            // 🔁 mise à jour classique de l'affichage
+            updateBossView(data);
+            updateParticipantsView(data);
+            updateStatusPill(data);
 
-        // 🔥 Détection d'une utilisation d'objet (comparaison previous → data)
-        if (previous && Array.isArray(previous.participants) && Array.isArray(data.participants)) {
-          const oldById = {};
-          for (const p of previous.participants) {
-            oldById[String(p.user_id)] = p;
-          }
+            // 🔥 Détection d'une utilisation d'objet
+            if (previous && Array.isArray(previous.participants) && Array.isArray(data.participants)) {
+              const oldById = {};
+              for (const p of previous.participants) {
+                oldById[String(p.user_id)] = p;
+              }
 
-          let itemUsed = false;
+              const oldBossHp = previous.hp_current || 0;
+              const newBossHp = data.hp_current || 0;
 
-          for (const p of data.participants) {
-            const old = oldById[String(p.user_id)];
-            if (!old) continue;
+              let itemUsed = false;
 
-            const oldItem = old.last_item_used || null;
-            const newItem = p.last_item_used || null;
+              for (const p of data.participants) {
+                const old = oldById[String(p.user_id)];
+                if (!old) continue;
 
-            if (newItem && newItem !== oldItem) {
-              hitLog.unshift({
-                type: "item",
-                name: p.name || "Joueur",
-                damage: p.last_item_value || 0,
-                ts: Date.now(),
-                kind: "special",
-                item_id: newItem,
-              });
-              itemUsed = true;
+                const oldItem = old.last_item_used || null;
+                const newItem = p.last_item_used || null;
+
+                // nouvel objet utilisé (ou objet différent)
+                if (newItem && newItem !== oldItem) {
+                  const val = p.last_item_value || 0;
+
+                  const deltaPet  = (p.hp_current || 0) - (old.hp_current || 0);
+                  const deltaBoss = oldBossHp - newBossHp;
+
+                  let msg;
+                  if (deltaPet > 0) {
+                    // potion de vie
+                    msg = `utilise ${newItem} (+${formatNumber(val)} PV)`;
+                  } else if (deltaBoss > 0) {
+                    // bombe
+                    msg = `utilise ${newItem} (-${formatNumber(val)} PV boss)`;
+                  } else if (val > 0) {
+                    msg = `utilise ${newItem} (${formatNumber(val)})`;
+                  } else {
+                    msg = `utilise ${newItem}`;
+                  }
+
+                  hitLog.unshift({
+                    type: "item",
+                    name: p.name || "Joueur",
+                    damage: val,
+                    ts: Date.now(),
+                    kind: "special",
+                    item_id: newItem,
+                    message: msg,
+                  });
+                  itemUsed = true;
+                }
+              }
+
+              if (itemUsed) {
+                hitLog = hitLog.slice(0, 8);
+                updateHitLogView();
+              }
             }
-          }
 
-          if (itemUsed) {
-            hitLog = hitLog.slice(0, 8);
-            updateHitLogView();
-          }
-        }
+            // Adaptation dynamique du refresh
+            if (data && data.status) {
+              setDynamicRefresh(data.status);
+            }
 
-        // ➜ On met à jour prevState *après* la détection
-        prevState = data;
-
-        // Adaptation dynamique du refresh
-        if (data && data.status) {
-          setDynamicRefresh(data.status);
-        }
       } catch (e) {
         console.error("Erreur API:", e);
       }
+      prevState = data;   // 👈 IMPORTANT : on met à jour ici seulement
       setLastUpdate();
       updateAttackButtonState(data || { status: "idle" });
-    }
+  }
 
 
     async function sendAttack() {
@@ -1574,3 +1575,4 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
