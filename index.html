@@ -1341,6 +1341,42 @@ async function sendChatMessage() {
         updateStatusPill(data);
         prevState = data;
 
+        // 🔥 Détection d'une utilisation d'objet
+        if (prevState && Array.isArray(prevState.participants) && Array.isArray(data.participants)) {
+          const oldById = {};
+          for (const p of prevState.participants) {
+            oldById[String(p.user_id)] = p;
+          }
+
+          let itemUsed = false;
+
+          for (const p of data.participants) {
+            const old = oldById[String(p.user_id)];
+            if (!old) continue;
+
+            const oldItem = old.last_item_used || null;
+            const newItem = p.last_item_used || null;
+
+            // nouvel objet utilisé (ou objet différent)
+            if (newItem && newItem !== oldItem) {
+              hitLog.unshift({
+                type: "item",
+                name: p.name || "Joueur",
+                damage: p.last_item_value || 0,
+                ts: Date.now(),
+                kind: "special",
+                item_id: newItem,
+              });
+              itemUsed = true;
+            }
+          }
+
+          if (itemUsed) {
+            hitLog = hitLog.slice(0, 8);
+            updateHitLogView();
+          }
+        }
+
         // Adaptation dynamique du refresh
         if (data && data.status) {
           setDynamicRefresh(data.status);
@@ -1514,6 +1550,7 @@ async function sendChatMessage() {
 
 </body>
 </html>
+
 
 
 
