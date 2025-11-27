@@ -1445,7 +1445,8 @@ async function sendChatMessage() {
       items.forEach(item => {
         const btn = document.createElement("button");
         btn.textContent = `${item.name} (${item.effect})`;
-        btn.addEventListener("click", () => useItem(item.id));
+        // 👉 on passe tout l'objet item, pas seulement l'id
+        btn.addEventListener("click", () => useItem(item));
         list.appendChild(btn);
       });
     }
@@ -1456,7 +1457,7 @@ async function sendChatMessage() {
     }
 
 
-    async function useItem(itemId) {
+    async function useItem(item) {
       if (!currentUserId) return;
 
       const res = await fetch(API_BASE + "/raid/use_item", {
@@ -1464,13 +1465,27 @@ async function sendChatMessage() {
         headers: {"Content-Type":"application/json"},
         body: JSON.stringify({
           user_id: currentUserId,
-          item_id: itemId
+          item_id: item.id
         })
       });
 
       if (res.ok) {
         document.getElementById("attack-status").textContent =
           "🎒 Objet utilisé !";
+
+        // 🔥 On ajoute l'info dans "Derniers coups"
+        const pseudo = localStorage.getItem("raid_user_name") || "Joueur";
+        hitLog.unshift({
+          type: "item",
+          name: pseudo,
+          damage: 0,
+          ts: Date.now(),
+          kind: "item",
+          message: `utilise ${item.name} (${item.effect})`
+        });
+        hitLog = hitLog.slice(0, 8);
+        updateHitLogView();
+
         closeItemsPanel();
       } else {
         const err = await res.json().catch(()=>({detail:"Erreur"}));
@@ -1539,6 +1554,7 @@ async function sendChatMessage() {
 
 </body>
 </html>
+
 
 
 
