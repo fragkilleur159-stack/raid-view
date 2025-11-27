@@ -1469,7 +1469,8 @@ async function sendChatMessage() {
     // Events
     document.getElementById("open-items").addEventListener("click", openItemsPanel);
     document.getElementById("close-items").addEventListener("click", closeItemsPanel);
-    document.getElementById("user-name-input").addEventListener("input", saveUserName);
+    document.getElementById("user-name-input")
+      .addEventListener("input", resolveUserName);
     document.getElementById("attack-button").addEventListener("click", sendAttack);
     document.getElementById("chat-send").addEventListener("click", sendChatMessage);
     document.getElementById("chat-input").addEventListener("keydown", (e) => {
@@ -1511,6 +1512,7 @@ async function sendChatMessage() {
 
 </body>
 </html>
+
 
 
 
