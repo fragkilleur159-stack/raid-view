@@ -806,38 +806,38 @@
 
 
     function renderChat(messages) {
-  const box = document.getElementById("chat-messages");
-  if (!box) return;
-  box.innerHTML = "";
+      const box = document.getElementById("chat-messages");
+      if (!box) return;
+      box.innerHTML = "";
 
-  messages.forEach(msg => {
-    const row = document.createElement("div");
-    row.className = "chat-message";
+      messages.forEach(msg => {
+        const row = document.createElement("div");
+        row.className = "chat-message";
 
-    const nameSpan = document.createElement("span");
+        const nameSpan = document.createElement("span");
 
-    if (msg.is_spectator) {
-      const spec = document.createElement("span");
-      spec.className = "chat-spectator-tag";
-      spec.textContent = "[Spectateur]";
-      row.appendChild(spec);
+        if (msg.is_spectator) {
+          const spec = document.createElement("span");
+          spec.className = "chat-spectator-tag";
+          spec.textContent = "[Spectateur]";
+          row.appendChild(spec);
+        }
+
+        nameSpan.className = "chat-name";
+        nameSpan.textContent = msg.name + " : ";
+        row.appendChild(nameSpan);
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "chat-text";
+        textSpan.textContent = msg.content;
+        row.appendChild(textSpan);
+
+        box.appendChild(row);
+      });
+
+      // scroll en bas
+      box.scrollTop = box.scrollHeight;
     }
-
-    nameSpan.className = "chat-name";
-    nameSpan.textContent = msg.name + " : ";
-    row.appendChild(nameSpan);
-
-    const textSpan = document.createElement("span");
-    textSpan.className = "chat-text";
-    textSpan.textContent = msg.content;
-    row.appendChild(textSpan);
-
-    box.appendChild(row);
-  });
-
-  // scroll en bas
-  box.scrollTop = box.scrollHeight;
-}
 
 async function fetchChat() {
   try {
@@ -882,7 +882,13 @@ async function sendChatMessage() {
   }
 }
 
-    
+// Mapping pour afficher proprement les objets utilisés
+const RAID_ITEM_DISPLAY = {
+  "potion_pet_petite": { label: "Petite Potion de vie", type: "heal_pet" },
+  "potion_pet_grosse": { label: "Grosse Potion de vie", type: "heal_pet" },
+  "bomb_raid_petite": { label: "Petite Bombe de Raid", type: "damage_boss" },
+  "bomb_raid_grosse": { label: "Grosse Bombe de Raid", type: "damage_boss" },
+};    
     
     function updateHitLogView() {
       const list = document.getElementById("hit-log-list");
@@ -904,15 +910,42 @@ async function sendChatMessage() {
         dmgSpan.className = "hit-dmg";
 
         if (entry.type === "boss") {
+          // Attaque du boss
           nameSpan.textContent = entry.name || "Boss";
           dmgSpan.textContent = `-${formatNumber(entry.damage)} dmg`;
         } else if (entry.type === "item") {
-          // 🔥 Affichage spécial pour un objet utilisé
+           // ✅ Utilisation d'objet
           nameSpan.textContent = entry.name || "Joueur";
-          const itemId = entry.item_id || "Objet";
-          const val = entry.damage || 0;
-          // On affiche le nom technique + la valeur pour l'instant
-          dmgSpan.textContent = `${itemId} (${val > 0 ? "+" + formatNumber(val) : formatNumber(val)})`;
+
+          // 1) Cas des logs venant du serveur (avec item_id + damage)
+          if (entry.item_id) {
+            const meta = RAID_ITEM_DISPLAY[entry.item_id] || {};
+            const label = meta.label || entry.item_id || "Objet";
+            const kind = meta.type || "generic";
+            const val = entry.damage || 0;
+
+            let text = `utilise ${label}`;
+            if (val) {
+              if (kind === "heal_pet") {
+                text += ` (+${formatNumber(val)} PV)`;
+              } else if (kind === "damage_boss") {
+                text += ` (-${formatNumber(val)} dégâts au boss)`;
+              } else {
+                text += ` (${val > 0 ? "+" + formatNumber(val) : formatNumber(val)})`;
+              }
+            }
+
+            dmgSpan.textContent = text;
+
+          // 2) Cas des vieux logs locaux qui ont juste un message
+          } else if (entry.message) {
+            dmgSpan.textContent = entry.message;
+
+          // 3) Fallback
+          } else {
+            dmgSpan.textContent = "utilise un objet";
+          }
+
         } else {
           // Coup classique d'un joueur
           nameSpan.textContent = entry.name || "Joueur";
@@ -924,7 +957,6 @@ async function sendChatMessage() {
         list.appendChild(row);
       });
     }
-
 
     function triggerBossAttackFlash() {
       const overlay = document.createElement("div");
@@ -1328,12 +1360,11 @@ async function sendChatMessage() {
         updateBossView(data);
         updateParticipantsView(data);
         updateStatusPill(data);
-        prevState = data;
 
-        // 🔥 Détection d'une utilisation d'objet
-        if (prevState && Array.isArray(prevState.participants) && Array.isArray(data.participants)) {
+        // 🔥 Détection d'une utilisation d'objet (comparaison previous → data)
+        if (previous && Array.isArray(previous.participants) && Array.isArray(data.participants)) {
           const oldById = {};
-          for (const p of prevState.participants) {
+          for (const p of previous.participants) {
             oldById[String(p.user_id)] = p;
           }
 
@@ -1346,7 +1377,6 @@ async function sendChatMessage() {
             const oldItem = old.last_item_used || null;
             const newItem = p.last_item_used || null;
 
-            // nouvel objet utilisé (ou objet différent)
             if (newItem && newItem !== oldItem) {
               hitLog.unshift({
                 type: "item",
@@ -1365,6 +1395,9 @@ async function sendChatMessage() {
             updateHitLogView();
           }
         }
+
+        // ➜ On met à jour prevState *après* la détection
+        prevState = data;
 
         // Adaptation dynamique du refresh
         if (data && data.status) {
@@ -1472,21 +1505,8 @@ async function sendChatMessage() {
       if (res.ok) {
         document.getElementById("attack-status").textContent =
           "🎒 Objet utilisé !";
-
-        // 🔥 On ajoute l'info dans "Derniers coups"
-        const pseudo = localStorage.getItem("raid_user_name") || "Joueur";
-        hitLog.unshift({
-          type: "item",
-          name: pseudo,
-          damage: 0,
-          ts: Date.now(),
-          kind: "item",
-          message: `utilise ${item.name} (${item.effect})`
-        });
-        hitLog = hitLog.slice(0, 8);
-        updateHitLogView();
-
         closeItemsPanel();
+        // Le log sera ajouté automatiquement par fetchRaidState
       } else {
         const err = await res.json().catch(()=>({detail:"Erreur"}));
         document.getElementById("attack-status").textContent =
@@ -1554,29 +1574,3 @@ async function sendChatMessage() {
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
