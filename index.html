@@ -1164,30 +1164,6 @@ async function sendChatMessage() {
           updateHitLogView();
         }
       }
-
-      // Détection approximative d'une "attaque du boss" :
-      // si le tour change, mais que les PV du boss n'ont pas bougé.
-      if (
-        prevState &&
-        prevState.current_turn &&
-        data.current_turn &&
-        prevState.current_turn !== data.current_turn &&
-        prevState.hp_current === hpCur
-      ) {
-        // flash rouge plein écran
-        triggerBossAttackFlash();
-
-        // log de l'attaque du boss
-        hitLog.unshift({
-          type: "boss",
-          name: "Boss",
-          damage: 0,
-          ts: Date.now(),
-          kind: "boss",
-        });
-        hitLog = hitLog.slice(0, 8);
-        updateHitLogView();
-      }
     }
 
     function updateParticipantsView(data) {
@@ -1563,6 +1539,7 @@ async function sendChatMessage() {
 
 </body>
 </html>
+
 
 
 
