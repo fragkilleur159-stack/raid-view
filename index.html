@@ -1466,6 +1466,10 @@ async function sendChatMessage() {
       return null;
     }
 
+    // --- Init variables ---
+    let refreshInterval = null;
+
+
     // Events
     document.getElementById("open-items").addEventListener("click", openItemsPanel);
     document.getElementById("close-items").addEventListener("click", closeItemsPanel);
@@ -1480,9 +1484,7 @@ async function sendChatMessage() {
       }
     });
 
-    // --- Init variables ---
-    let refreshInterval = null;
-
+    
     // --- Dynamic refresh du raid ---
     function setDynamicRefresh(status) {
       if (refreshInterval) clearInterval(refreshInterval);
@@ -1512,6 +1514,7 @@ async function sendChatMessage() {
 
 </body>
 </html>
+
 
 
 
