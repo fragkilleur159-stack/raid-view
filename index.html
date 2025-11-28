@@ -1485,6 +1485,7 @@ const RAID_ITEM_DISPLAY = {
           });
           hitLog = hitLog.slice(0, 8);
           updateHitLogView();
+          enterUpsideDown();
         } else if (prevUD && !nowUD) {
           // On vient de sortir de l'Upside Down
           hitLog.unshift({
@@ -1497,6 +1498,7 @@ const RAID_ITEM_DISPLAY = {
           });
           hitLog = hitLog.slice(0, 8);
           updateHitLogView();
+          leaveUpsideDown();
         }
 
         // 🔥 Détection des attaques du boss : on regarde les HP des pets
@@ -1779,6 +1781,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
