@@ -837,6 +837,8 @@
     let worldPhase = "normal"; // "normal" | "entering" | "upside" | "leaving"
     let worldProgress = 0;     // 0 → normal, 1 → upside
     let themeAnimRunning = false;
+    let wasUpsideDown = false;
+    let upsideStableParticlesTimer = null;
 
 
 
@@ -1777,6 +1779,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
