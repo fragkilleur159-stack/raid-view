@@ -5,331 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🔥 Raid Au Coin Du Feu</title>
 
-  <style>
+    <style>
+    /* ===== BASE ===== */
 
-    body {
-      background: radial-gradient(circle at 20% 0%, #2a0500 0, #050000 55%, #000 100%);
-      color: #ffe0c2;
-    }
-
-    /* Une particule */
-    .upside-particle {
-      position: absolute;
-      width: 2px;
-      height: 6px;
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 999px;
-      opacity: 0.8;
-      animation: upsideFall linear infinite;
-    }
-
-    @keyframes upsideFall {
-      0% {
-        transform: translateY(-10vh);
-      }
-      100% {
-        transform: translateY(110vh);
-      }
-    }
-
-    /* Thème Upside Down (couleurs cibles) */
-    body.upside-theme {
-      background: radial-gradient(circle at 50% 100%, #010308 0, #02010a 40%, #000000 100%);
-      color: #d7ddff;
-    }
-
-    body.upside-theme .raid-card,
-    body.upside-theme .attack-card,
-    body.upside-theme .participants-card,
-    body.upside-theme .hit-log-card {
-      background: rgba(2, 1, 20, 0.92);
-      box-shadow:
-        0 0 25px rgba(100, 0, 180, 0.5),
-        0 0 80px rgba(0, 0, 0, 0.95);
-      border-color: rgba(130, 90, 255, 0.35);
-    }
-      
-    .items-panel {
-      background: rgba(35, 10, 0, 0.95);
-      border: 1px solid rgba(255, 160, 80, 0.4);
-      box-shadow: 0 0 20px rgba(255, 120, 60, 0.4);
-      padding: 16px;
-      border-radius: 12px;
-      position: fixed;
-      right: 20px;
-      top: 20%;
-      width: 260px;
-      z-index: 100;
-    }
-
-    .items-list button {
-      width: 100%;
-      margin-bottom: 6px;
-      padding: 6px;
-      background: linear-gradient(90deg, #cc5500, #ff9a00);
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-
-    .close-items-btn {
-      width: 100%;
-      margin-top: 10px;
-      padding: 6px;
-      background: rgba(255, 80, 40, 0.7);
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-    }
-
-    /* --- TCHAT RAID --- */
-    .chat-card {
-      background: rgba(35, 10, 0, 0.9);
-      padding: 16px;
-      border-radius: 14px;
-      box-shadow:
-        0 0 25px rgba(255, 80, 0, 0.25),
-        0 0 80px rgba(0, 0, 0, 0.8);
-      border: 1px solid rgba(255, 150, 70, 0.18);
-      max-height: 420px;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .chat-title {
-      margin: 0 0 6px 0;
-      color: #ffddaa;
-      font-weight: 700;
-    }
-
-    .chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding-right: 4px;
-      font-size: 13px;
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.25);
-      padding: 6px 8px;
-    }
-
-    .chat-message {
-      margin-bottom: 4px;
-    }
-
-    .chat-message span.chat-name {
-      font-weight: 600;
-      color: #ffebcc;
-    }
-
-    .chat-message span.chat-spectator-tag {
-      font-size: 11px;
-      color: #ff9a66;
-      margin-right: 4px;
-    }
-
-    .chat-message span.chat-text {
-      color: #ffe6cc;
-    }
-
-    .chat-input-row {
-      display: flex;
-      gap: 6px;
-      margin-top: 8px;
-    }
-
-    .chat-input-row input {
-      flex: 1;
-      background: rgba(10, 2, 0, 0.9);
-      border-radius: 8px;
-      border: 1px solid rgba(255, 160, 80, 0.7);
-      padding: 5px 8px;
-      color: #ffe0c2;
-      font-size: 13px;
-    }
-
-    .chat-input-row button {
-      border: none;
-      border-radius: 999px;
-      padding: 6px 12px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      background: linear-gradient(90deg, #cc5500, #ff9a00);
-      color: #2a0500;
-    }
-
-    .chat-hint {
-      margin-top: 4px;
-      font-size: 11px;
-      color: #ffcc99;
-    }
-
-    /* Layout 2 colonnes sur grand écran */
-  @media (min-width: 950px) {
-    .container {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      grid-template-rows: auto auto;
-      gap: 20px;
-    }
-    .status-pill {
-      grid-column: 1 / 3;
-    }
-    .card,
-    .attack-card,
-    .participants-card {
-      grid-column: 1 / 2;
-    }
-    .chat-card {
-      grid-column: 2 / 3;
-      grid-row: 2 / 4;
-    }
-  }
-    
-    .hit-log-row .hit-dmg {
-      font-weight: 600;
-    }
-
-        /* dégâts normaux */
-    .hit-log-row.normal .hit-dmg {
-      color: #ffb36b;
-    }
-
-    /* critique */
-    .hit-log-row.crit .hit-dmg {
-      color: #ffe066;
-      text-shadow: 0 0 6px #ffe066, 0 0 12px rgba(255, 230, 150, 0.6);
-    }
-
-    /* spécial / ultime */
-    .hit-log-row.ultimate .hit-dmg,
-    .hit-log-row.special .hit-dmg {
-      color: #ff4444;
-      font-weight: 800;
-      text-shadow: 0 0 6px #ff2222, 0 0 14px rgba(255, 0, 0, 0.7);
-    }
-
-    /* nom du boss en rouge */
-    .hit-log-row.boss .hit-name {
-      color: #ff8080;
-    }
-    
-    /* Boss qui tremble quand il se fait toucher */
-    .boss-image-wrapper.hit {
-      animation: bossShake 0.35s ease-out;
-    }
-
-    @keyframes bossShake {
-      0%   { transform: translateX(0); }
-      20%  { transform: translateX(-4px); }
-      40%  { transform: translateX(4px); }
-      60%  { transform: translateX(-3px); }
-      80%  { transform: translateX(3px); }
-      100% { transform: translateX(0); }
-    }
-
-    /* Texte de dégâts qui flotte au-dessus de la barre de vie */
-    .damage-popup {
-      position: absolute;
-      left: 50%;
-      top: -4px;
-      transform: translateX(-50%);
-      font-size: 16px;
-      font-weight: 800;
-      color: #ffe6dd;
-      text-shadow:
-        0 0 4px #ff4500,
-        0 0 10px rgba(0, 0, 0, 0.9);
-      pointer-events: none;
-      animation: dmgFloat 0.9s ease-out forwards;
-    }
-
-    @keyframes dmgFloat {
-      0% {
-        opacity: 1;
-        transform: translate(-50%, 0) scale(1);
-      }
-      100% {
-        opacity: 0;
-        transform: translate(-50%, -35px) scale(1.1);
-      }
-    }
-
-    /* Variantes de couleur pour les types de coups */
-    .damage-popup.normal {
-      color: #ffd9b3;
-    }
-    .damage-popup.crit {
-      color: #fffbcc;
-      text-shadow:
-        0 0 6px #ffe066,
-        0 0 14px rgba(255, 180, 80, 0.9);
-    }
-    .damage-popup.special {
-      color: #ffe6ff;
-      text-shadow:
-        0 0 6px #ff66aa,
-        0 0 14px rgba(255, 80, 140, 0.9);
-    } 
-
-    /* Flash rouge quand le boss attaque (overlay fullscreen) */
-    .boss-attack-overlay {
-      position: fixed;
-      inset: 0;
-      background: radial-gradient(circle at center, rgba(255,0,0,0.55), transparent 70%);
-      pointer-events: none;
-      animation: bossAttackFlash 0.6s ease-out forwards;
-      z-index: 50;
-    }
-
-    @keyframes bossAttackFlash {
-      0% { opacity: 0.8; }
-      100% { opacity: 0; }
-    }
-
-    /* Log des derniers coups */
-    .hit-log-card {
-      margin-top: 15px;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255, 150, 80, 0.25);
-      font-size: 13px;
-    }
-
-    .hit-log-title {
-      font-weight: 700;
-      margin-bottom: 6px;
-      color: #ffddaa;
-    }
-
-    .hit-log-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 3px;
-      opacity: 0.9;
-    }
-
-    .hit-log-row span.hit-name {
-      color: #ffe0c2;
-    }
-    .hit-log-row span.hit-dmg {
-      font-weight: 600;
-    }    
-    .hit-log-row.normal span.hit-dmg {
-      color: #ffb36b;
-    }
-    .hit-log-row.crit span.hit-dmg {
-      color: #ffe066;
-    }
-    .hit-log-row.special span.hit-dmg {
-      color: #ff7abf;
-    }
-    .hit-log-row.boss span.hit-name {
-      color: #ff8080;
-    }
-
-
-    
     body {
       margin: 0;
       padding: 0;
@@ -411,7 +89,57 @@
       gap: 20px;
     }
 
-    /* ---- Status pill ---- */
+    /* ===== UPSIDE DOWN (PARTICULES + THÈME) ===== */
+
+    #upside-particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+      opacity: 0;
+      transition: opacity 0.6s ease-out;
+    }
+
+    .upside-particle {
+      position: absolute;
+      width: 2px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 999px;
+      opacity: 0.8;
+      animation: upsideFall linear infinite;
+    }
+
+    @keyframes upsideFall {
+      0% {
+        transform: translateY(-10vh);
+      }
+      100% {
+        transform: translateY(110vh);
+      }
+    }
+
+    /* Thème Upside Down (couleurs cibles) */
+    body.upside-theme {
+      background: radial-gradient(circle at 50% 100%, #010308 0, #02010a 40%, #000000 100%);
+      color: #d7ddff;
+    }
+
+    body.upside-theme .card,
+    body.upside-theme .attack-card,
+    body.upside-theme .participants-card,
+    body.upside-theme .hit-log-card,
+    body.upside-theme .chat-card {
+      background: rgba(2, 1, 20, 0.92);
+      box-shadow:
+        0 0 25px rgba(100, 0, 180, 0.5),
+        0 0 80px rgba(0, 0, 0, 0.95);
+      border-color: rgba(130, 90, 255, 0.35);
+    }
+
+    /* ===== STATUS PILL ===== */
+
     .status-pill {
       padding: 8px 16px;
       border-radius: 20px;
@@ -433,7 +161,8 @@
       background: linear-gradient(90deg, #992200, #661100);
     }
 
-    /* ---- Cards ---- */
+    /* ===== CARTES ===== */
+
     .card,
     .participants-card,
     .attack-card {
@@ -461,7 +190,6 @@
       text-shadow: 0 0 6px #ff6a00;
     }
 
-    /* Image du boss */
     .boss-image-wrapper {
       width: 80px;
       height: 80px;
@@ -485,195 +213,30 @@
       opacity: 0;
     }
 
-    /* ---- HP bar ---- */
     .hp-bar-wrapper {
-      background: #4d1f00;
-      height: 26px;
-      border-radius: 12px;
-      overflow: hidden;
       margin-top: 15px;
-      box-shadow: inset 0 0 8px #120600;
+      width: 100%;
+      height: 22px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.55);
+      overflow: hidden;
+      box-shadow:
+        0 0 20px rgba(255, 80, 0, 0.4),
+        inset 0 0 8px rgba(0, 0, 0, 0.8);
       position: relative;
     }
 
     .hp-bar-fill {
-      background: linear-gradient(90deg, #ff4500, #ff9a00);
       height: 100%;
-      transform-origin: left;
-      transition: transform 0.5s ease-out;
-    }
-
-    .hp-bar-wrapper::after {
-      content: "";
-      position: absolute;
-      inset: -4px;
-      pointer-events: none;
-      background-image:
-        radial-gradient(circle at 10% 50%, rgba(255,255,255,0.7) 0, transparent 45%),
-        radial-gradient(circle at 40% 20%, rgba(255,220,150,0.85) 0, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(255,180,80,0.75) 0, transparent 50%);
-      mix-blend-mode: screen;
-      opacity: 0.0;
-      filter: blur(1px);
-      animation: sparks 2.8s ease-in-out infinite;
-    }
-
-    @keyframes sparks {
-      0%, 100% {
-        opacity: 0.08;
-        transform: translateY(0);
-      }
-      50% {
-        opacity: 0.4;
-        transform: translateY(-3px);
-      }
-    }
-
-    .boss-hit {
-      animation: flash 0.25s ease-out;
-    }
-
-    @keyframes flash {
-      0% { background-color: #ff2200; }
-      100% { background-color: #4d1f00; }
+      width: 100%;
+      transform-origin: left center;
+      transform: scaleX(1);
+      background: linear-gradient(90deg, #4caf50, #ffeb3b, #ff5722);
+      transition: transform 0.3s ease-out;
     }
 
     .timer {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #ffcc99;
-    }
-
-    /* ---- Participants ---- */
-    .participants-card h2 {
-      margin-top: 0;
-      color: #ffddaa;
-      text-shadow: 0 0 6px rgba(255,120,40,0.6);
-    }
-
-    .participant-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid rgba(255, 128, 64, 0.3);
-    }
-
-    .participant-row:last-child {
-      border-bottom: none;
-    }
-
-    .participant-name {
-      font-size: 16px;
-      font-weight: 600;
-      color: #ffe0c2;
-    }
-
-    .participant-pet {
-      font-size: 13px;
-      color: #ffb38a;
-    }
-
-    .participant-bar-outer {
-      background: #7a2d00;
-      height: 12px;
-      width: 120px;
-      border-radius: 6px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .participant-bar-inner {
-      background: linear-gradient(90deg, #ff6a00, #ffb347);
-      height: 100%;
-      transform-origin: left;
-      transition: transform 0.4s ease-out;
-    }
-
-    .participant-bar-outer::after {
-      content: "";
-      position: absolute;
-      inset: -2px;
-      pointer-events: none;
-      background-image:
-        radial-gradient(circle at 20% 50%, rgba(255,255,255,0.6) 0, transparent 45%),
-        radial-gradient(circle at 70% 40%, rgba(255,210,140,0.6) 0, transparent 50%);
-      mix-blend-mode: screen;
-      opacity: 0.0;
-      filter: blur(0.8px);
-      animation: smallSparks 3.4s ease-in-out infinite;
-    }
-
-    @keyframes smallSparks {
-      0%, 100% {
-        opacity: 0.05;
-        transform: translateY(0);
-      }
-      50% {
-        opacity: 0.3;
-        transform: translateY(-2px);
-      }
-    }
-
-    .participant-damage {
-      text-align: right;
-      color: #ffd9b3;
-    }
-
-    /* ---- Attack card ---- */
-    .attack-card-title {
-      margin-top: 0;
-      color: #ffddaa;
-      text-shadow: 0 0 6px rgba(255,120,40,0.6);
-    }
-
-    .attack-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      margin-top: 10px;
-    }
-
-    .attack-row input {
-      background: rgba(10, 2, 0, 0.9);
-      border-radius: 8px;
-      border: 1px solid rgba(255, 160, 80, 0.7);
-      padding: 6px 10px;
-      color: #ffe0c2;
-      min-width: 200px;
-    }
-
-    .attack-row button {
-      border: none;
-      border-radius: 999px;
-      padding: 8px 18px;
-      font-weight: 600;
-      cursor: pointer;
-      background: linear-gradient(90deg, #cc5500, #ff9a00);
-      color: #2a0500;
-      box-shadow: 0 0 14px rgba(255, 140, 60, 0.7);
-      transition: transform 0.1s ease-out, box-shadow 0.1s ease-out, opacity 0.2s;
-    }
-
-    .attack-row button:disabled {
-      opacity: 0.4;
-      cursor: default;
-      box-shadow: none;
-    }
-
-    .attack-row button:active {
-      transform: scale(0.97);
-      box-shadow: 0 0 6px rgba(255, 120, 40, 0.5);
-    }
-
-    .attack-status {
       margin-top: 8px;
-      font-size: 14px;
-      color: #ffcc99;
-    }
-
-    #last-update {
-      margin-top: 20px;
       font-size: 14px;
       color: #ffcc99;
       text-shadow: 0 0 8px #ff5500;
@@ -697,7 +260,7 @@
       box-shadow: 0 0 12px rgba(255, 160, 80, 0.35);
     }
 
-    /* 💀 Pets K.O. (morts) */
+    /* 💀 Pets K.O. */
     .participant-row.dead {
       opacity: 0.55;
       filter: grayscale(0.9);
@@ -725,9 +288,218 @@
       font-weight: 700;
     }
 
-    
+    /* ===== LOG DES COUPS ===== */
 
+    .hit-log-card {
+      margin-top: 16px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 150, 80, 0.25);
+      font-size: 13px;
+    }
+
+    .hit-log-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #ffddaa;
+    }
+
+    .hit-log-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+      opacity: 0.9;
+    }
+
+    .hit-log-row span.hit-name {
+      color: #ffe0c2;
+    }
+    .hit-log-row span.hit-dmg {
+      font-weight: 600;
+    }    
+    .hit-log-row.normal span.hit-dmg {
+      color: #ffb36b;
+    }
+    .hit-log-row.crit span.hit-dmg {
+      color: #ffe066;
+    }
+    .hit-log-row.special span.hit-dmg {
+      color: #ff7abf;
+    }
+    .hit-log-row.boss span.hit-name {
+      color: #ff8080;
+    }
+
+    /* ===== PANEL OBJETS ===== */
+
+    .items-panel {
+      background: rgba(35, 10, 0, 0.95);
+      border: 1px solid rgba(255, 160, 80, 0.4);
+      box-shadow: 0 0 20px rgba(255, 120, 60, 0.4);
+      padding: 16px;
+      border-radius: 12px;
+      position: fixed;
+      right: 20px;
+      top: 20%;
+      width: 260px;
+      z-index: 100;
+    }
+
+    .items-list button {
+      width: 100%;
+      margin-bottom: 6px;
+      padding: 6px;
+      background: linear-gradient(90deg, #cc5500, #ff9a00);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .close-items-btn {
+      width: 100%;
+      margin-top: 10px;
+      padding: 6px;
+      background: rgba(255, 80, 40, 0.7);
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* ===== TCHAT ===== */
+
+    .chat-card {
+      background: rgba(35, 10, 0, 0.9);
+      padding: 16px;
+      border-radius: 14px;
+      box-shadow:
+        0 0 25px rgba(255, 80, 0, 0.25),
+        0 0 80px rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(255, 150, 70, 0.18);
+      max-height: 420px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-title {
+      margin: 0 0 6px 0;
+      color: #ffddaa;
+      font-weight: 700;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+      font-size: 13px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 6px 8px;
+    }
+
+    .chat-message {
+      margin-bottom: 4px;
+    }
+
+    .chat-message span.chat-name {
+      font-weight: 600;
+      color: #ffebcc;
+    }
+
+    .chat-message span.chat-spectator-tag {
+      font-size: 11px;
+      color: #ff9a66;
+      margin-right: 4px;
+    }
+
+    .chat-message span.chat-text {
+      color: #ffe6cc;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .chat-input-row input {
+      flex: 1;
+      background: rgba(10, 2, 0, 0.9);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 160, 80, 0.7);
+      padding: 5px 8px;
+      color: #ffe6cc;
+    }
+
+    .chat-input-row button {
+      background: linear-gradient(90deg, #cc5500, #ff9a00);
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      padding: 6px 12px;
+      font-weight: 600;
+      color: #fff5e6;
+    }
+
+    .chat-hint {
+      margin-top: 6px;
+      font-size: 11px;
+      color: #ffcc99;
+    }
+
+    /* ===== ATTACK CARD ===== */
+
+    .attack-card-title {
+      margin-top: 0;
+      margin-bottom: 8px;
+      color: #ffddaa;
+    }
+
+    .attack-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    #user-name-input {
+      flex: 1;
+      background: rgba(10, 2, 0, 0.9);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 160, 80, 0.7);
+      padding: 5px 8px;
+      color: #ffe6cc;
+    }
+
+    #attack-button,
+    #open-items {
+      background: linear-gradient(90deg, #cc5500, #ff9a00);
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      padding: 6px 12px;
+      font-weight: 600;
+      color: #fff5e6;
+    }
+
+    #attack-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .attack-status {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #ffddaa;
+      min-height: 18px;
+    }
+
+    #last-update {
+      margin: 10px 0 30px;
+      font-size: 11px;
+      color: #ffcc99;
+      opacity: 0.8;
+    }
   </style>
+
 </head>
 
 <body>
@@ -1749,6 +1521,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
