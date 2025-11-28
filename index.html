@@ -23,6 +23,20 @@
     overflow-x: hidden;
   }
 
+  #upside-particles {
+    position: fixed;      /* collé à la fenêtre, pas au flux du body */
+    inset: 0;             /* top:0; right:0; bottom:0; left:0; */
+    pointer-events: none; /* ne bloque jamais les clics */
+    overflow: hidden;     /* coupe les particules qui dépassent */
+    z-index: 0;           /* couche de fond */
+  }
+
+  /* On s'assure que le reste du contenu passe devant */
+  body > *:not(#upside-particles) {
+    position: relative;
+    z-index: 1;
+  }
+    
   .hit-log-row.special .hit-name {
     color: #caaaff;
   }
@@ -1781,6 +1795,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
