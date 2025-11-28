@@ -7,6 +7,47 @@
 
   <style>
 
+    body {
+      background: radial-gradient(circle at 20% 0%, #2a0500 0, #050000 55%, #000 100%);
+      color: #ffe0c2;
+
+    /* Une particule */
+    .upside-particle {
+      position: absolute;
+      width: 2px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 999px;
+      opacity: 0.8;
+      animation: upsideFall linear infinite;
+    }
+
+    @keyframes upsideFall {
+      0% {
+        transform: translateY(-10vh);
+      }
+      100% {
+        transform: translateY(110vh);
+      }
+    }
+
+    /* Thème Upside Down (couleurs cibles) */
+    body.upside-theme {
+      background: radial-gradient(circle at 50% 100%, #010308 0, #02010a 40%, #000000 100%);
+      color: #d7ddff;
+    }
+
+    body.upside-theme .raid-card,
+    body.upside-theme .attack-card,
+    body.upside-theme .participants-card,
+    body.upside-theme .hit-log-card {
+      background: rgba(2, 1, 20, 0.92);
+      box-shadow:
+        0 0 25px rgba(100, 0, 180, 0.5),
+        0 0 80px rgba(0, 0, 0, 0.95);
+      border-color: rgba(130, 90, 255, 0.35);
+    }
+      
     .items-panel {
       background: rgba(35, 10, 0, 0.95);
       border: 1px solid rgba(255, 160, 80, 0.4);
@@ -683,10 +724,13 @@
       font-weight: 700;
     }
 
+    }
+
   </style>
 </head>
 
 <body>
+  <div id="upside-particles"></div>
 
   <h1>🔥 Raid Au Coin Du Feu</h1>
 
@@ -734,6 +778,7 @@
       </div>
 
       <div id="difficulty-label" style="margin-top: 10px; font-weight: bold;"></div>
+      <div id="upside-label" style="margin-top:6px;color:#b0b7ff;font-weight:600;display:none;"></div>
       <div class="timer" id="timer-status"></div>
       <div class="timer" id="timer-range"></div>
     </div>
@@ -791,16 +836,119 @@
     let currentUserId = null;
     let hitLog = [];
     let chatMessagesCache = [];
+    let worldPhase = "normal"; // "normal" | "entering" | "upside" | "leaving"
+    let worldProgress = 0;     // 0 → normal, 1 → upside
+    let themeAnimRunning = false;
 
 
 
     // Base de dégâts pour un coup "normal" (à adapter si tu changes le raid)
     const BASE_DAMAGE = 150;
 
+    // Création des particules une seule fois
+    function initUpsideParticles() {
+      const container = document.getElementById("upside-particles");
+      if (!container) return;
+      if (container.dataset.initialized === "1") return;
+      container.dataset.initialized = "1";
+
+      const count = 60; // nombre de particules
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement("div");
+        p.className = "upside-particle";
+        p.style.left = Math.random() * 100 + "vw";
+        p.style.animationDuration = (5 + Math.random() * 6) + "s";
+        p.style.animationDelay = (-Math.random() * 10) + "s";
+        container.appendChild(p);
+      }
+    }
+
+    // Appelé à chaque frame pendant la transition
+    function applyThemeProgress() {
+      const body = document.body;
+      const particles = document.getElementById("upside-particles");
+
+      // Phase stable : on met ou enlève la classe
+      if (worldPhase === "upside") {
+        body.classList.add("upside-theme");
+      } else if (worldPhase === "normal") {
+        body.classList.remove("upside-theme");
+      }
+
+      // Opacité des particules :
+      // - en entrant → de 0 à 1
+      // - en Upside stable → 1
+      // - en sortant → de 1 à 0
+      if (particles) {
+        let alpha = 0;
+        if (worldPhase === "entering") alpha = worldProgress;
+        else if (worldPhase === "upside") alpha = 1;
+        else if (worldPhase === "leaving") alpha = worldProgress; // 1→0
+        particles.style.opacity = alpha.toFixed(2);
+      }
+    }
+
+    function startThemeLoop() {
+      if (themeAnimRunning) return;
+      themeAnimRunning = true;
+      initUpsideParticles();
+
+      let last = performance.now();
+
+      function step(now) {
+        const dt = (now - last) / 1000;
+        last = now;
+
+        const SPEED = 0.4; // secondes pour passer de 0 à 1
+
+        if (worldPhase === "entering") {
+          worldProgress += dt / SPEED;
+          if (worldProgress >= 1) {
+            worldProgress = 1;
+            worldPhase = "upside";
+          }
+        } else if (worldPhase === "leaving") {
+          worldProgress -= dt / SPEED;
+          if (worldProgress <= 0) {
+            worldProgress = 0;
+            worldPhase = "normal";
+          }
+        }
+
+        applyThemeProgress();
+
+        if (worldPhase === "entering" || worldPhase === "leaving") {
+          requestAnimationFrame(step);
+        } else {
+          // phase stable : on garde juste l’état, plus besoin d’animation
+          themeAnimRunning = false;
+        }
+      }
+
+      requestAnimationFrame(step);
+    }
+
+    function enterUpsideDown() {
+      // On commence la transition vers l'UD seulement si on n'y est pas déjà
+      if (worldPhase === "upside" || worldPhase === "entering") return;
+      worldPhase = "entering";
+      worldProgress = 0;
+      startThemeLoop();
+    }
+
+    function leaveUpsideDown() {
+      // On commence à revenir seulement si on est dedans
+      if (worldPhase === "normal" || worldPhase === "leaving") return;
+      worldPhase = "leaving";
+      worldProgress = 1;
+      startThemeLoop();
+    }
+    
+
     function classifyHit(dmg) {
       if (dmg >= BASE_DAMAGE * 3) return "ultimate"; // très gros coup
       if (dmg >= BASE_DAMAGE * 2) return "crit";     // coup critique
-      return "normal";                               // coup normal
+          return "normal";                               // coup normal
     }
 
 
@@ -1077,7 +1225,18 @@ const RAID_ITEM_DISPLAY = {
       const timerRangeEl = document.getElementById("timer-range");
       const diffLabelEl = document.getElementById("difficulty-label");
       const bossImgEl = document.getElementById("boss-image");
+      const udLabel = document.getElementById("upside-label");
       
+      if (udLabel) {
+        if (data.upside_down_active) {
+          const left = data.upside_down_turns_left || 0;
+          udLabel.textContent = `🌌 Monde à l'envers (tour(s) restant(s) du boss : ${left})`;
+          udLabel.style.display = "block";
+        } else {
+          udLabel.textContent = "";
+          udLabel.style.display = "none";
+        }
+      }
 
       if (!data || data.status !== "running") {
         bossNameEl.textContent = "Aucun raid actif";
@@ -1297,6 +1456,18 @@ const RAID_ITEM_DISPLAY = {
         const res = await fetch(STATE_ENDPOINT + "?t=" + Date.now());
         data = await res.json();
 
+        // --- Détection entrée/sortie Upside Down ---
+        const prevUD = previous ? !!previous.upside_down_active : false;
+        const nowUD  = !!data.upside_down_active;
+
+        if (!prevUD && nowUD) {
+          // On plonge dans l'Upside Down
+          enterUpsideDown();
+        } else if (prevUD && !nowUD) {
+          // On ressort
+          leaveUpsideDown();
+        }
+
         // 🔥 Détection des attaques du boss : on regarde les HP des pets
         if (previous && Array.isArray(previous.participants) && Array.isArray(data.participants)) {
           const oldById = {};
@@ -1339,6 +1510,8 @@ const RAID_ITEM_DISPLAY = {
             updateBossView(data);
             updateParticipantsView(data);
             updateStatusPill(data);
+
+            prevState = data;  // ⚠ très important, on met à jour ici
 
             // 🔥 Détection d'une utilisation d'objet
             if (previous && Array.isArray(previous.participants) && Array.isArray(data.participants)) {
@@ -1575,4 +1748,5 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
