@@ -738,6 +738,52 @@
   .participant-ko-label {
     font-weight: 700;
   }
+
+  /* Quand le Monde à l'envers est actif, le bouton Objets est grisé et inutilisable */
+  body.upside-theme #open-items {
+    pointer-events: none;
+    opacity: 0.3;
+    cursor: not-allowed;
+    filter: grayscale(1);
+  }
+
+  /* Quand l'Upside Down est actif ET que le bouton est désactivé */
+  body.upside-theme #open-items:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    filter: grayscale(1) contrast(1.2);
+    position: relative;
+    overflow: hidden;
+    transform: scale(0.96);
+  }
+
+  /* Petit effet "glitch" violet sur le texte du bouton */
+  body.upside-theme #open-items:disabled::after {
+    content: "❌ Objets bloqués";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95em;
+    letter-spacing: 0.03em;
+    color: #f0c5ff;
+    text-shadow: 0 0 4px #a335ff, 0 0 8px #ff4df0;
+    mix-blend-mode: screen;
+    animation: upsideButtonGlitch 1.4s infinite;
+    pointer-events: none;
+  }
+
+  /* Animation de glitch léger */
+  @keyframes upsideButtonGlitch {
+    0%   { transform: translate(0, 0); opacity: 1; }
+    20%  { transform: translate(-1px, -1px); opacity: 0.8; }
+    40%  { transform: translate(2px, 1px); opacity: 1; }
+    60%  { transform: translate(-2px, 2px); opacity: 0.7; }
+    80%  { transform: translate(1px, -1px); opacity: 1; }
+    100% { transform: translate(0, 0); opacity: 0.9; }
+  }  
+  
 </style>
 
 </head>
@@ -1501,6 +1547,11 @@ const RAID_ITEM_DISPLAY = {
           hitLog = hitLog.slice(0, 8);
           updateHitLogView();
           enterUpsideDown();
+          // 🔒 On ferme le panel d'objets si il était ouvert
+          const panel = document.getElementById("items-panel");
+          if (panel) {
+            panel.style.display = "none";
+          }
         } else if (prevUD && !nowUD) {
           // On vient de sortir de l'Upside Down
           hitLog.unshift({
@@ -1513,6 +1564,9 @@ const RAID_ITEM_DISPLAY = {
           });
           hitLog = hitLog.slice(0, 8);
           updateHitLogView();
+          // ✅ On réactive le bouton Objets
+          const itemsBtn = document.getElementById("open-items");
+          if (itemsBtn) itemsBtn.disabled = false;
           leaveUpsideDown();
         }
 
@@ -1681,6 +1735,15 @@ const RAID_ITEM_DISPLAY = {
 
 
     async function openItemsPanel() {
+      // 🔒 Sécurité : si on est dans le Monde à l'envers, pas d'objets
+      if (worldPhase === "upside" || document.body.classList.contains("upside-theme")) {
+        const status = document.getElementById("attack-status");
+        if (status) {
+          status.textContent = "🌌 Dans le Monde à l'envers, les objets ne fonctionnent plus.";
+        }
+        return;
+      }
+
       const panel = document.getElementById("items-panel");
       const list = document.getElementById("items-list");
 
@@ -1700,11 +1763,11 @@ const RAID_ITEM_DISPLAY = {
       items.forEach(item => {
         const btn = document.createElement("button");
         btn.textContent = `${item.name} (${item.effect})`;
-        // 👉 on passe tout l'objet item, pas seulement l'id
         btn.addEventListener("click", () => useItem(item));
         list.appendChild(btn);
       });
     }
+
 
 
     function closeItemsPanel() {
@@ -1714,6 +1777,28 @@ const RAID_ITEM_DISPLAY = {
 
     async function useItem(item) {
       if (!currentUserId) return;
+
+      // ❌ Sécurité : pas d'objet dans le Monde à l'envers
+      if (worldPhase === "upside" || worldPhase === "entering") {
+        const status = document.getElementById("attack-status");
+        if (status) {
+          status.textContent = "🌌 Impossible d'utiliser des objets dans le Monde à l'envers.";
+        }
+
+        hitLog.unshift({
+          type: "boss",
+          name: "Démogorgon",
+          damage: 0,
+          ts: Date.now(),
+          kind: "special",
+          text: `⚠️ ${item.name} est aspiré par le Monde à l'envers et ne se déclenche pas.`,
+        });
+        hitLog = hitLog.slice(0, 8);
+        updateHitLogView();
+
+        closeItemsPanel();
+        return;
+      }
 
       const res = await fetch(API_BASE + "/raid/use_item", {
         method: "POST",
@@ -1796,6 +1881,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
