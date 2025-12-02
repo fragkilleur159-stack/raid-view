@@ -935,16 +935,7 @@
     }
 
 
-    fetch(`/user/artifacts?uid=${user_id}`)
-    .then(r=>r.json())
-    .then(data=>{
-        if(data.unlocked){
-            document.getElementById("artifact-panel").classList.remove("hidden");
-            for(const slot in data.slots){
-                document.getElementById(slot).innerText = data.slots[slot] ?? "vide";
-            }
-        }
-    });
+    
 
     // Appelé à chaque frame pendant la transition
     function applyThemeProgress() {
@@ -1944,6 +1935,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
