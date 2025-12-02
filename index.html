@@ -852,6 +852,7 @@
         <input id="user-name-input" placeholder="Ton pseudo Discord (ex: Pseudo#0000)" />
         <button id="attack-button" disabled>⚔️ Attaquer</button>
         <button id="open-items">🎒 Objets</button>
+        <button id="open-artifacts" style="display:none;">🔮 Artefacts</button>
       </div>
       <div id="attack-status" class="attack-status"></div>
     </div>
@@ -862,6 +863,18 @@
         <button id="close-items" class="close-items-btn">Fermer</button>
     </div>
 
+    <div id="artifacts-panel" class="items-panel" style="display:none;">
+      <h3>🔮 Artefacts</h3>
+      <p>Tu peux équiper jusqu'à <b>3 artefacts</b>. (à définir plus tard)</p>
+      <div id="artifacts-slots">
+        <div class="artifact-slot" data-slot="0">[Slot 1 vide]</div>
+        <div class="artifact-slot" data-slot="1">[Slot 2 vide]</div>
+        <div class="artifact-slot" data-slot="2">[Slot 3 vide]</div>
+      </div>
+      <button onclick="closeArtifactsPanel()">Fermer</button>
+    </div>
+
+    
     <!-- PARTICIPANTS -->
     <div class="participants-card">
       <h2>👥 Participants</h2>
@@ -1522,6 +1535,30 @@ const RAID_ITEM_DISPLAY = {
         "Dernière mise à jour : " + new Date().toLocaleTimeString("fr-FR");
     }
 
+
+    function applyArtifactsVisibility(data) {
+      const btnArtifacts = document.getElementById("open-artifacts");
+      if (!btnArtifacts || !currentUserId) return;
+
+      let me = null;
+      if (data.participants) {
+        for (const p of data.participants) {
+          if (String(p.user_id) === String(currentUserId)) {
+            me = p;
+            break;
+          }
+        }
+      }
+
+      if (me && me.artifacts_unlocked) {
+        btnArtifacts.style.display = "inline-block";
+      } else {
+        btnArtifacts.style.display = "none";
+        document.getElementById("artifacts-panel").style.display = "none";
+      }
+    }
+
+
     async function fetchRaidState() {
       let data = null;
       const previous = prevState; // on garde l'ancien état pour comparer
@@ -1826,7 +1863,18 @@ const RAID_ITEM_DISPLAY = {
       }
     }
 
+    function openArtifactsPanel() {
+      const panel = document.getElementById("artifacts-panel");
+      if (!panel) return;
+      panel.style.display = "block";
 
+      // plus tard : fetch des artefacts équipés pour le joueur et remplir les 3 slots
+    }
+
+    function closeArtifactsPanel() {
+      const panel = document.getElementById("artifacts-panel");
+      if (!panel) return;
+      panel.style.display = "none";
     
     async function resolveUserIdFromName(name) {
       const url = API_BASE + "/raid/resolve_user?name=" + encodeURIComponent(name);
@@ -1843,6 +1891,7 @@ const RAID_ITEM_DISPLAY = {
 
 
     // Events
+    document.getElementById("open-artifacts").addEventListener("click", openArtifactsPanel);
     document.getElementById("open-items").addEventListener("click", openItemsPanel);
     document.getElementById("close-items").addEventListener("click", closeItemsPanel);
     document.getElementById("user-name-input").addEventListener("input", saveUserName);   // instantané
@@ -1886,6 +1935,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
