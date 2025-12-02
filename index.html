@@ -1884,7 +1884,7 @@ const RAID_ITEM_DISPLAY = {
       const panel = document.getElementById("artifacts-panel");
       if (!panel) return;
       panel.style.display = "none";
-    
+    }
     async function resolveUserIdFromName(name) {
       const url = API_BASE + "/raid/resolve_user?name=" + encodeURIComponent(name);
       try {
@@ -1944,6 +1944,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
