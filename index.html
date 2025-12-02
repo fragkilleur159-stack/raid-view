@@ -863,16 +863,13 @@
         <button id="close-items" class="close-items-btn">Fermer</button>
     </div>
 
-    <div id="artifacts-panel" class="items-panel" style="display:none;">
-      <h3>🔮 Artefacts</h3>
-      <p>Tu peux équiper jusqu'à <b>3 artefacts</b>. (à définir plus tard)</p>
-      <div id="artifacts-slots">
-        <div class="artifact-slot" data-slot="0">[Slot 1 vide]</div>
-        <div class="artifact-slot" data-slot="1">[Slot 2 vide]</div>
-        <div class="artifact-slot" data-slot="2">[Slot 3 vide]</div>
-      </div>
-      <button onclick="closeArtifactsPanel()">Fermer</button>
+    <div id="artifact-panel" class="hidden">
+        <h2>Artefacts équipés</h2>
+        <div class="slot" id="slot1"></div>
+        <div class="slot" id="slot2"></div>
+        <div class="slot" id="slot3"></div>
     </div>
+
 
     
     <!-- PARTICIPANTS -->
@@ -936,6 +933,18 @@
         container.appendChild(p);
       }
     }
+
+
+    fetch(`/user/artifacts?uid=${user_id}`)
+    .then(r=>r.json())
+    .then(data=>{
+        if(data.unlocked){
+            document.getElementById("artifact-panel").classList.remove("hidden");
+            for(const slot in data.slots){
+                document.getElementById(slot).innerText = data.slots[slot] ?? "vide";
+            }
+        }
+    });
 
     // Appelé à chaque frame pendant la transition
     function applyThemeProgress() {
@@ -1935,6 +1944,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
