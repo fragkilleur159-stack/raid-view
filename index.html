@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🔥 Raid Au Coin Du Feu</title>
   <style>
+  .hidden {
+    display: none;
+  }
+
   /* Corps de page */
   body {
     margin: 0;
@@ -301,6 +305,15 @@
       0 0 6px #ff66aa,
       0 0 14px rgba(255, 80, 140, 0.9);
   }
+
+  .damage-popup.ultimate {
+    color: #ff8080;
+    text-shadow:
+      0 0 8px #ff2b2b,
+      0 0 18px rgba(255, 40, 40, 0.9);
+    font-size: 18px;
+  }
+  
 
   /* Flash rouge quand le boss attaque (overlay fullscreen) */
   .boss-attack-overlay {
@@ -725,14 +738,14 @@
     text-decoration: line-through;
   }
 
-  .participant-hp-text {
+  .participant-hp {
     font-size: 12px;
     margin-top: 2px;
     color: #ffddb8;
   }
 
-  .participant-row.dead .participant-hp-bar .participant-bar-inner {
-    transform: scaleX(0) !important;
+  .participant-row.dead .participant-bar-inner {
+  transform: scaleX(0) !important;
   }
 
   .participant-ko-label {
@@ -863,7 +876,7 @@
         <button id="close-items" class="close-items-btn">Fermer</button>
     </div>
 
-    <div id="artifact-panel" class="hidden">
+    <div id="artifacts-panel" class="hidden">
         <h2>Artefacts équipés</h2>
         <div class="slot" id="slot1"></div>
         <div class="slot" id="slot2"></div>
@@ -1236,7 +1249,7 @@ const RAID_ITEM_DISPLAY = {
 
       if (!currentUserId) {
         btn.disabled = true;
-        status.textContent = "Renseigne ton ID Discord pour pouvoir attaquer.";
+        status.textContent = "Renseigne ton pseudo Discord pour pouvoir attaquer.";
         return;
       }
       if (!statusData || statusData.status !== "running") {
@@ -1935,6 +1948,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
