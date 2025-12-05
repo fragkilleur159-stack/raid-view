@@ -44,7 +44,85 @@
   .hit-log-row.special .hit-name {
     color: #caaaff;
   }
-    
+
+  #artifacts-panel {
+  margin-top: 15px;
+  padding: 10px;
+  background: #1b1b1f;
+  border-radius: 8px;
+  border: 1px solid #444;
+  }
+
+  .artifact-slot {
+    border: 1px dashed #666;
+    padding: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    border-radius: 6px;
+    background: #111;
+  }
+
+  .artifact-empty {
+    color: #777;
+    font-size: 14px;
+  }
+
+  .artifact-name {
+    font-weight: bold;
+    font-size: 14px;
+  }
+
+  .artifact-id {
+    font-size: 12px;
+    color: #999;
+  }
+
+  .artifact-hint {
+    font-size: 11px;
+    color: #888;
+  }
+
+  .artifact-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+  }
+
+  .artifact-modal-content {
+    background: #1b1b20;
+    padding: 12px;
+    border-radius: 8px;
+    max-width: 320px;
+    width: 90%;
+  }
+
+  .artifact-choice-btn,
+  .artifact-clear,
+  .artifact-cancel {
+    display: block;
+    width: 100%;
+    margin: 4px 0;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: none;
+    background: #333;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+   .artifact-clear {
+    background: #553333;
+  }
+
+  .artifact-cancel {
+    background: #444;
+  }
+  
   /* Une particule */
   .upside-particle {
     position: absolute;
@@ -913,6 +991,9 @@
     const API_BASE = "https://raid-api-la5d.onrender.com";
     const STATE_ENDPOINT = API_BASE + "/raid/state";
     const ATTACK_ENDPOINT = API_BASE + "/raid/attack";
+    const USER_ARTIFACTS_ENDPOINT = API_BASE + "/user/artifacts";
+    const USER_ARTIFACTS_EQUIP_ENDPOINT = API_BASE + "/user/artifacts/equip";
+
 
     let prevState = null;
     let currentUserId = null;
@@ -923,6 +1004,9 @@
     let themeAnimRunning = false;
     let wasUpsideDown = false;
     let upsideStableParticlesTimer = null;
+    let currentArtifactsSlots = { slot1: null, slot2: null, slot3: null };
+    let availableArtifacts = {}; // {art_id: {label, qty}}
+
 
 
 
@@ -1876,18 +1960,154 @@ const RAID_ITEM_DISPLAY = {
       }
     }
 
-    function openArtifactsPanel() {
-      const panel = document.getElementById("artifacts-panel");
-      if (!panel) return;
-      panel.style.display = "block";
+    async function openArtifactsPanel() {
+  const panel = document.getElementById("artifacts-panel");
+  if (!panel) return;
 
-      // plus tard : fetch des artefacts équipés pour le joueur et remplir les 3 slots
+  const status = document.getElementById("attack-status");
+
+  if (!currentUserId) {
+    status.textContent = "Renseigne ton pseudo Discord et rejoins le raid avant de gérer tes artefacts.";
+    return;
+  }
+
+  try {
+    const res = await fetch(
+      USER_ARTIFACTS_ENDPOINT + "?uid=" + encodeURIComponent(String(currentUserId))
+    );
+    if (!res.ok) {
+      status.textContent = "❌ Impossible de charger tes artefacts.";
+      return;
+    }
+    const data = await res.json();
+
+    if (!data.unlocked) {
+      status.textContent = "🔒 Tu n'as pas encore débloqué les artefacts.";
+      panel.style.display = "none";
+      return;
     }
 
-    function closeArtifactsPanel() {
-      const panel = document.getElementById("artifacts-panel");
-      if (!panel) return;
-      panel.style.display = "none";
+    currentArtifactsSlots = data.slots || { slot1: null, slot2: null, slot3: null };
+    availableArtifacts = data.available || {};
+
+    renderArtifactSlots();
+    panel.style.display = "block";
+  } catch (e) {
+    status.textContent = "❌ Erreur réseau lors du chargement des artefacts.";
+  }
+}
+
+function closeArtifactsPanel() {
+  const panel = document.getElementById("artifacts-panel");
+  if (!panel) return;
+  panel.style.display = "none";
+}
+
+function renderArtifactSlots() {
+  const slotIds = ["slot1", "slot2", "slot3"];
+
+  slotIds.forEach((slotId) => {
+    const el = document.getElementById(slotId);
+    if (!el) return;
+
+    const artId = currentArtifactsSlots[slotId] || null;
+    el.innerHTML = "";
+    el.classList.add("artifact-slot");
+    el.dataset.slotId = slotId;
+    el.onclick = () => openArtifactChoice(slotId);
+
+    if (artId && availableArtifacts[artId]) {
+      const info = availableArtifacts[artId];
+      el.innerHTML = `
+        <div class="artifact-name">${info.label || artId}</div>
+        <div class="artifact-id">${artId}</div>
+        <div class="artifact-hint">Clique pour changer</div>
+      `;
+    } else if (artId) {
+      el.innerHTML = `
+        <div class="artifact-name">${artId}</div>
+        <div class="artifact-hint">Clique pour changer</div>
+      `;
+    } else {
+      el.innerHTML = `<span class="artifact-empty">+ Aucun artefact</span>`;
+    }
+  });
+}
+
+function openArtifactChoice(slotId) {
+  // petit modal simple en overlay
+  const existing = document.getElementById("artifact-modal");
+  if (existing) existing.remove();
+
+  const container = document.createElement("div");
+  container.id = "artifact-modal";
+  container.className = "artifact-modal";
+  container.innerHTML = `
+    <div class="artifact-modal-content">
+      <h3>Choisir un artefact pour ${slotId}</h3>
+      <div class="artifact-choice-list"></div>
+      <button class="artifact-clear">Retirer l'artefact</button>
+      <button class="artifact-cancel">Annuler</button>
+    </div>
+  `;
+  document.body.appendChild(container);
+
+  const list = container.querySelector(".artifact-choice-list");
+  const entries = Object.entries(availableArtifacts || {});
+
+  if (entries.length === 0) {
+    list.innerHTML = "<p>Tu n'as pas encore d'artefacts dans ton inventaire.</p>";
+  } else {
+    entries.forEach(([artId, info]) => {
+      const btn = document.createElement("button");
+      btn.className = "artifact-choice-btn";
+      btn.textContent = `${info.label || artId} (x${info.qty ?? "?"})`;
+      btn.onclick = async () => {
+        await equipArtifact(slotId, artId);
+        container.remove();
+      };
+      list.appendChild(btn);
+    });
+  }
+
+  container.querySelector(".artifact-clear").onclick = async () => {
+    await equipArtifact(slotId, null);
+    container.remove();
+  };
+  container.querySelector(".artifact-cancel").onclick = () => container.remove();
+}
+
+async function equipArtifact(slotId, artId) {
+  if (!currentUserId) return;
+  const status = document.getElementById("attack-status");
+
+  try {
+    const res = await fetch(USER_ARTIFACTS_EQUIP_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: String(currentUserId),
+        slot: slotId,
+        artifact_id: artId,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Erreur" }));
+      status.textContent =
+        "❌ " + (err.detail || "Impossible de mettre à jour l'artefact.");
+      return;
+    }
+
+    const data = await res.json();
+    currentArtifactsSlots = data.slots || currentArtifactsSlots;
+    renderArtifactSlots();
+    status.textContent = "💠 Artefact mis à jour.";
+  } catch (e) {
+    status.textContent = "❌ Erreur réseau lors de la mise à jour des artefacts.";
+  }
+}
+
     }
     async function resolveUserIdFromName(name) {
       const url = API_BASE + "/raid/resolve_user?name=" + encodeURIComponent(name);
@@ -1948,6 +2168,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
