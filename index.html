@@ -2009,166 +2009,166 @@ const RAID_ITEM_DISPLAY = {
     }
 
     async function openArtifactsPanel() {
-  const panel = document.getElementById("artifacts-panel");
-  if (!panel) return;
+      const panel = document.getElementById("artifacts-panel");
+      if (!panel) return;
 
-  const status = document.getElementById("attack-status");
+      const status = document.getElementById("attack-status");
 
-  if (!currentUserId) {
-    status.textContent = "Renseigne ton pseudo Discord et rejoins le raid avant de gérer tes artefacts.";
-    return;
-  }
+      if (!currentUserId) {
+        status.textContent = "Renseigne ton pseudo Discord et rejoins le raid avant de gérer tes artefacts.";
+        return;
+      }
 
-  try {
-    const res = await fetch(
-      USER_ARTIFACTS_ENDPOINT + "?uid=" + encodeURIComponent(String(currentUserId))
-    );
-    if (!res.ok) {
-      status.textContent = "❌ Impossible de charger tes artefacts.";
-      return;
+      try {
+        const res = await fetch(
+          USER_ARTIFACTS_ENDPOINT + "?uid=" + encodeURIComponent(String(currentUserId))
+        );
+        if (!res.ok) {
+          status.textContent = "❌ Impossible de charger tes artefacts.";
+          return;
+        }
+        const data = await res.json();
+
+        if (!data.unlocked) {
+          status.textContent = "🔒 Tu n'as pas encore débloqué les artefacts.";
+          panel.style.display = "none";
+          return;
+        }
+
+        currentArtifactsSlots = data.slots || { slot1: null, slot2: null, slot3: null };
+        availableArtifacts = data.available || {};
+
+        renderArtifactSlots();
+        panel.style.display = "block";
+      } catch (e) {
+        status.textContent = "❌ Erreur réseau lors du chargement des artefacts.";
+      }
     }
-    const data = await res.json();
 
-    if (!data.unlocked) {
-      status.textContent = "🔒 Tu n'as pas encore débloqué les artefacts.";
+    function closeArtifactsPanel() {
+      const panel = document.getElementById("artifacts-panel");
+      if (!panel) return;
       panel.style.display = "none";
-      return;
     }
 
-    currentArtifactsSlots = data.slots || { slot1: null, slot2: null, slot3: null };
-    availableArtifacts = data.available || {};
+    function renderArtifactSlots() {
+      const slotIds = ["slot1", "slot2", "slot3"];
 
-    renderArtifactSlots();
-    panel.style.display = "block";
-  } catch (e) {
-    status.textContent = "❌ Erreur réseau lors du chargement des artefacts.";
-  }
-}
+      slotIds.forEach((slotId) => {
+        const el = document.getElementById(slotId);
+        if (!el) return;
 
-function closeArtifactsPanel() {
-  const panel = document.getElementById("artifacts-panel");
-  if (!panel) return;
-  panel.style.display = "none";
-}
+        const artId = currentArtifactsSlots[slotId] || null;
+        el.innerHTML = "";
+        el.classList.add("artifact-slot");
+        el.dataset.slotId = slotId;
+        el.onclick = () => openArtifactChoice(slotId);
 
-function renderArtifactSlots() {
-  const slotIds = ["slot1", "slot2", "slot3"];
+        // on remet à zéro le tooltip par défaut
+        el.removeAttribute("data-effect");
+        el.removeAttribute("title");
 
-  slotIds.forEach((slotId) => {
-    const el = document.getElementById(slotId);
-    if (!el) return;
-
-    const artId = currentArtifactsSlots[slotId] || null;
-    el.innerHTML = "";
-    el.classList.add("artifact-slot");
-    el.dataset.slotId = slotId;
-    el.onclick = () => openArtifactChoice(slotId);
-
-    // on remet à zéro le tooltip par défaut
-    el.removeAttribute("data-effect");
-    el.removeAttribute("title");
-
-    if (artId && availableArtifacts[artId]) {
-      const info = availableArtifacts[artId];
-      const effectText = getArtifactEffectText(artId);
-      el.innerHTML = `
-        <div class="artifact-name">${info.label || artId}</div>
-        <div class="artifact-id">${artId}</div>
-        <div class="artifact-hint">Survole pour voir l'effet</div>
-      `;
-      // 👉 ici, on ajoute l'effet pour le hover
-      el.dataset.effect = effectText;
-      el.title = effectText; // tooltip natif du navigateur
-    } else if (artId) {
-      const effectText = getArtifactEffectText(artId);
-      el.innerHTML = `
-        <div class="artifact-name">${artId}</div>
-        <div class="artifact-hint">Survole pour voir l'effet</div>
-      `;
-      el.dataset.effect = effectText;
-      el.title = effectText;
-    } else {
-      el.innerHTML = `<span class="artifact-empty">+ Aucun artefact</span>`;
+        if (artId && availableArtifacts[artId]) {
+          const info = availableArtifacts[artId];
+          const effectText = getArtifactEffectText(artId);
+          el.innerHTML = `
+            <div class="artifact-name">${info.label || artId}</div>
+            <div class="artifact-id">${artId}</div>
+            <div class="artifact-hint">Survole pour voir l'effet</div>
+          `;
+          // 👉 ici, on ajoute l'effet pour le hover
+          el.dataset.effect = effectText;
+          el.title = effectText; // tooltip natif du navigateur
+        } else if (artId) {
+          const effectText = getArtifactEffectText(artId);
+          el.innerHTML = `
+            <div class="artifact-name">${artId}</div>
+            <div class="artifact-hint">Survole pour voir l'effet</div>
+          `;
+          el.dataset.effect = effectText;
+          el.title = effectText;
+        } else {
+          el.innerHTML = `<span class="artifact-empty">+ Aucun artefact</span>`;
+        }
+      });
     }
-  });
-}
 
 
-function openArtifactChoice(slotId) {
-  // petit modal simple en overlay
-  const existing = document.getElementById("artifact-modal");
-  if (existing) existing.remove();
+    function openArtifactChoice(slotId) {
+      // petit modal simple en overlay
+      const existing = document.getElementById("artifact-modal");
+      if (existing) existing.remove();
 
-  const container = document.createElement("div");
-  container.id = "artifact-modal";
-  container.className = "artifact-modal";
-  container.innerHTML = `
-    <div class="artifact-modal-content">
-      <h3>Choisir un artefact pour ${slotId}</h3>
-      <div class="artifact-choice-list"></div>
-      <button class="artifact-clear">Retirer l'artefact</button>
-      <button class="artifact-cancel">Annuler</button>
-    </div>
-  `;
-  document.body.appendChild(container);
+      const container = document.createElement("div");
+      container.id = "artifact-modal";
+      container.className = "artifact-modal";
+      container.innerHTML = `
+        <div class="artifact-modal-content">
+          <h3>Choisir un artefact pour ${slotId}</h3>
+          <div class="artifact-choice-list"></div>
+          <button class="artifact-clear">Retirer l'artefact</button>
+          <button class="artifact-cancel">Annuler</button>
+        </div>
+      `;
+      document.body.appendChild(container);
 
-  const list = container.querySelector(".artifact-choice-list");
-  const entries = Object.entries(availableArtifacts || {});
+      const list = container.querySelector(".artifact-choice-list");
+      const entries = Object.entries(availableArtifacts || {});
 
-  if (entries.length === 0) {
-    list.innerHTML = "<p>Tu n'as pas encore d'artefacts dans ton inventaire.</p>";
-  } else {
-    entries.forEach(([artId, info]) => {
-      const btn = document.createElement("button");
-      btn.className = "artifact-choice-btn";
-      btn.textContent = `${info.label || artId} (x${info.qty ?? "?"})`;
-      btn.onclick = async () => {
-        await equipArtifact(slotId, artId);
+      if (entries.length === 0) {
+        list.innerHTML = "<p>Tu n'as pas encore d'artefacts dans ton inventaire.</p>";
+      } else {
+        entries.forEach(([artId, info]) => {
+          const btn = document.createElement("button");
+          btn.className = "artifact-choice-btn";
+          btn.textContent = `${info.label || artId} (x${info.qty ?? "?"})`;
+          btn.onclick = async () => {
+            await equipArtifact(slotId, artId);
+            container.remove();
+          };
+          list.appendChild(btn);
+        });
+      }
+
+      container.querySelector(".artifact-clear").onclick = async () => {
+        await equipArtifact(slotId, null);
         container.remove();
       };
-      list.appendChild(btn);
-    });
-  }
-
-  container.querySelector(".artifact-clear").onclick = async () => {
-    await equipArtifact(slotId, null);
-    container.remove();
-  };
-  container.querySelector(".artifact-cancel").onclick = () => container.remove();
-}
-
-async function equipArtifact(slotId, artId) {
-  if (!currentUserId) return;
-  const status = document.getElementById("attack-status");
-
-  try {
-    const res = await fetch(USER_ARTIFACTS_EQUIP_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: String(currentUserId),
-        slot: slotId,
-        artifact_id: artId,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: "Erreur" }));
-      status.textContent =
-        "❌ " + (err.detail || "Impossible de mettre à jour l'artefact.");
-      return;
+      container.querySelector(".artifact-cancel").onclick = () => container.remove();
     }
 
-    const data = await res.json();
-    currentArtifactsSlots = data.slots || currentArtifactsSlots;
-    renderArtifactSlots();
-    status.textContent = "💠 Artefact mis à jour.";
-  } catch (e) {
-    status.textContent = "❌ Erreur réseau lors de la mise à jour des artefacts.";
-  }
-}
+    async function equipArtifact(slotId, artId) {
+      if (!currentUserId) return;
+      const status = document.getElementById("attack-status");
 
+      try {
+        const res = await fetch(USER_ARTIFACTS_EQUIP_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: String(currentUserId),
+            slot: slotId,
+            artifact_id: artId,
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: "Erreur" }));
+          status.textContent =
+            "❌ " + (err.detail || "Impossible de mettre à jour l'artefact.");
+          return;
+        }
+
+        const data = await res.json();
+        currentArtifactsSlots = data.slots || currentArtifactsSlots;
+        renderArtifactSlots();
+        status.textContent = "💠 Artefact mis à jour.";
+      } catch (e) {
+        status.textContent = "❌ Erreur réseau lors de la mise à jour des artefacts.";
+      }
     }
+
+    
     async function resolveUserIdFromName(name) {
       const url = API_BASE + "/raid/resolve_user?name=" + encodeURIComponent(name);
       try {
@@ -2228,6 +2228,7 @@ async function equipArtifact(slotId, artId) {
 
 </body>
 </html>
+
 
 
 
