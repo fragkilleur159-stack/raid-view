@@ -27,6 +27,43 @@
     overflow-x: hidden;
   }
 
+  .artifact-slot {
+  position: relative;
+}
+
+  /* Tooltip custom basé sur data-effect */
+  .artifact-slot[data-effect]:hover::after {
+    content: attr(data-effect);
+    position: absolute;
+    left: 50%;
+    top: -5px;
+    transform: translate(-50%, -100%);
+    background: rgba(10, 10, 20, 0.95);
+    color: #fff;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    max-width: 220px;
+    white-space: normal;
+    text-align: center;
+    border: 1px solid rgba(255, 200, 100, 0.5);
+    z-index: 50;
+  }
+
+  /* petite flèche */
+  .artifact-slot[data-effect]:hover::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -5px;
+    transform: translate(-50%, 0);
+    border-width: 5px;
+    border-style: solid;
+    border-color: rgba(10,10,20,0.95) transparent transparent transparent;
+    z-index: 49;
+  }
+
+    
   #upside-particles {
     position: fixed;      /* collé à la fenêtre, pas au flux du body */
     inset: 0;             /* top:0; right:0; bottom:0; left:0; */
@@ -1008,6 +1045,17 @@
     let availableArtifacts = {}; // {art_id: {label, qty}}
 
 
+    // Effets connus des artefacts (par ID d'item)
+    const ARTIFACT_EFFECTS = {
+      "art_feu": "🔥 Augmente tes dégâts de 5%.",
+      "art_ombre": "🌑 3% de chances de doubler tes dégâts.",
+      "art_glace": "❄ Réduit les dégâts subis (exemple).",
+      // ajoute ici les autres artefacts quand tu en crées
+    };
+
+    function getArtifactEffectText(artId) {
+      return ARTIFACT_EFFECTS[artId] || "Effet inconnu pour cet artefact.";
+    }
 
 
     // Base de dégâts pour un coup "normal" (à adapter si tu changes le raid)
@@ -2016,23 +2064,35 @@ function renderArtifactSlots() {
     el.dataset.slotId = slotId;
     el.onclick = () => openArtifactChoice(slotId);
 
+    // on remet à zéro le tooltip par défaut
+    el.removeAttribute("data-effect");
+    el.removeAttribute("title");
+
     if (artId && availableArtifacts[artId]) {
       const info = availableArtifacts[artId];
+      const effectText = getArtifactEffectText(artId);
       el.innerHTML = `
         <div class="artifact-name">${info.label || artId}</div>
         <div class="artifact-id">${artId}</div>
-        <div class="artifact-hint">Clique pour changer</div>
+        <div class="artifact-hint">Survole pour voir l'effet</div>
       `;
+      // 👉 ici, on ajoute l'effet pour le hover
+      el.dataset.effect = effectText;
+      el.title = effectText; // tooltip natif du navigateur
     } else if (artId) {
+      const effectText = getArtifactEffectText(artId);
       el.innerHTML = `
         <div class="artifact-name">${artId}</div>
-        <div class="artifact-hint">Clique pour changer</div>
+        <div class="artifact-hint">Survole pour voir l'effet</div>
       `;
+      el.dataset.effect = effectText;
+      el.title = effectText;
     } else {
       el.innerHTML = `<span class="artifact-empty">+ Aucun artefact</span>`;
     }
   });
 }
+
 
 function openArtifactChoice(slotId) {
   // petit modal simple en overlay
@@ -2168,6 +2228,7 @@ async function equipArtifact(slotId, artId) {
 
 </body>
 </html>
+
 
 
 
