@@ -1080,7 +1080,42 @@
     }
 
 
-    
+    async function checkArtifactsUnlocked() {
+      const btn = document.getElementById("open-artifacts");
+      if (!btn) return;
+
+      // si on n'a pas encore d'user_id → on cache le bouton
+      if (!currentUserId) {
+        btn.style.display = "none";
+        return;
+      }
+
+      try {
+        const res = await fetch(
+          USER_ARTIFACTS_ENDPOINT + "?uid=" + encodeURIComponent(String(currentUserId))
+        );
+
+        if (!res.ok) {
+          // en cas d'erreur API, on laisse le bouton caché
+          btn.style.display = "none";
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.unlocked) {
+          // 👉 joueur débloqué → on montre le bouton
+          btn.style.display = "inline-block";
+        } else {
+          // pas débloqué → on cache
+          btn.style.display = "none";
+        }
+      } catch (e) {
+        // erreur réseau → on cache aussi
+        btn.style.display = "none";
+      }
+    }
+
 
     // Appelé à chaque frame pendant la transition
     function applyThemeProgress() {
@@ -1340,6 +1375,7 @@ const RAID_ITEM_DISPLAY = {
       } catch (e) {}
 
       updateAttackButtonState();
+      checkArtifactsUnlocked();
     }
 
     async function saveUserName() {
@@ -1351,6 +1387,7 @@ const RAID_ITEM_DISPLAY = {
         localStorage.removeItem("raid_user_name");
         localStorage.removeItem("raid_user_id");
         updateAttackButtonState();
+        checkArtifactsUnlocked();
         return;
       }
 
@@ -1373,6 +1410,7 @@ const RAID_ITEM_DISPLAY = {
       }
 
       updateAttackButtonState();
+      checkArtifactsUnlocked();
     }
 
     function updateAttackButtonState(statusData) {
@@ -2228,6 +2266,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
