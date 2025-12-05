@@ -1081,40 +1081,39 @@
 
 
     async function checkArtifactsUnlocked() {
-      const btn = document.getElementById("open-artifacts");
-      if (!btn) return;
+        const btn = document.getElementById("open-artifacts");
+        if (!btn) return;
 
-      // si on n'a pas encore d'user_id → on cache le bouton
-      if (!currentUserId) {
-        btn.style.display = "none";
-        return;
-      }
-
-      try {
-        const res = await fetch(
-          USER_ARTIFACTS_ENDPOINT + "?uid=" + encodeURIComponent(String(currentUserId))
-        );
-
-        if (!res.ok) {
-          // en cas d'erreur API, on laisse le bouton caché
-          btn.style.display = "none";
-          return;
+        // si pas encore d'utilisateur reconnu = cacher
+        if (!currentUserId) {
+            btn.style.display = "none";
+            return;
         }
 
-        const data = await res.json();
+        try {
+            const res = await fetch(
+                USER_ARTIFACTS_ENDPOINT + "?uid=" + encodeURIComponent(String(currentUserId))
+            );
 
-        if (data.unlocked) {
-          // 👉 joueur débloqué → on montre le bouton
-          btn.style.display = "inline-block";
-        } else {
-          // pas débloqué → on cache
-          btn.style.display = "none";
+            if (!res.ok) {
+                btn.style.display = "none";
+                return;
+            }
+
+            const data = await res.json();
+
+            console.log("[DEBUG] API artifacts:", data);
+
+            if (data.unlocked === true) {
+                btn.style.display = "inline-block";  // 🔥 ici ça affiche !
+            } else {
+                btn.style.display = "none";
+            }
+        } catch (e) {
+            btn.style.display = "none";
         }
-      } catch (e) {
-        // erreur réseau → on cache aussi
-        btn.style.display = "none";
-      }
     }
+
 
 
     // Appelé à chaque frame pendant la transition
@@ -2266,6 +2265,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
