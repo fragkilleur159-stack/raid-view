@@ -1101,6 +1101,8 @@
     const ATTACK_ENDPOINT = API_BASE + "/raid/attack";
     const USER_ARTIFACTS_ENDPOINT = API_BASE + "/user/artifacts";
     const USER_ARTIFACTS_EQUIP_ENDPOINT = API_BASE + "/user/artifacts/equip";
+    const RAID_LIST_ENDPOINT = API_BASE + "/raid/list";
+
 
 
     let prevState = null;
@@ -1123,6 +1125,67 @@
       "art_glace": "❄ Réduit les dégâts subis (exemple).",
       // ajoute ici les autres artefacts quand tu en crées
     };
+
+    function getSelectedRaidIdFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("raid_id");
+    }
+
+    function goToRaid(raidId) {
+      const params = new URLSearchParams(window.location.search);
+      params.set("raid_id", raidId);
+      // recharge la page avec le raid choisi dans l'URL
+      window.location.search = params.toString();
+    }
+
+    async function loadRaidSelector() {
+      const loadingEl = document.getElementById("raid-selector-loading");
+      const emptyEl = document.getElementById("raid-selector-empty");
+      const listEl = document.getElementById("raid-selector-list");
+
+      if (!loadingEl || !emptyEl || !listEl) return;
+
+      loadingEl.style.display = "block";
+      emptyEl.style.display = "none";
+      listEl.innerHTML = "";
+
+      try {
+        const res = await fetch(RAID_LIST_ENDPOINT + "?t=" + Date.now());
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const raids = await res.json();
+
+        loadingEl.style.display = "none";
+
+        if (!Array.isArray(raids) || raids.length === 0) {
+          emptyEl.style.display = "block";
+          return;
+        }
+
+        raids.forEach(r => {
+          const btn = document.createElement("button");
+          btn.className = "raid-selector-item";
+
+          const name = r.label || r.name || ("Raid " + (r.id || "?"));
+          const boss = r.boss_pet_id ? ("Boss : " + r.boss_pet_id) : "";
+          let statusLabel = "Inactif";
+          if (r.status === "running") statusLabel = "🟢 En cours";
+          else if (r.status === "finished") statusLabel = "⚪ Terminé";
+
+          btn.innerHTML = `
+            <div class="raid-selector-title">${name}</div>
+            <div class="raid-selector-sub">${boss}</div>
+            <div class="raid-selector-status">${statusLabel}</div>
+          `;
+
+          btn.addEventListener("click", () => goToRaid(r.id || "current"));
+          listEl.appendChild(btn);
+        });
+      } catch (e) {
+        console.error("Erreur /raid/list :", e);
+        loadingEl.textContent = "Erreur lors du chargement des raids.";
+      }
+    }
+
 
     function getArtifactEffectText(artId) {
       return ARTIFACT_EFFECTS[artId] || "Effet inconnu pour cet artefact.";
@@ -2322,21 +2385,42 @@ const RAID_ITEM_DISPLAY = {
     }
 
     // --- Init au chargement de la page ---
-    loadUserId();
+    async function initPage() {
+      const raidMain = document.getElementById("raid-main");
+      const raidSelector = document.getElementById("raid-selector");
+      const selectedRaidId = getSelectedRaidIdFromUrl();
 
-    // 1er fetch raid + le raid lui-même adaptera le refresh (via setDynamicRefresh dans fetchRaidState)
-    fetchRaidState();
+      // 🧭 Aucun raid choisi → écran de sélection
+      if (!selectedRaidId) {
+        if (raidMain) raidMain.style.display = "none";
+        if (raidSelector) raidSelector.style.display = "block";
+        await loadRaidSelector();
+        return;
+      }
 
-    // 1er fetch tchat pour afficher l'historique directement
-    fetchChat();
-    setInterval(fetchChat, 3000); // raffraîchit ensuite toutes les 3s
+      // 🌋 Raid choisi → on affiche la page du raid
+      if (raidSelector) raidSelector.style.display = "none";
+      if (raidMain) raidMain.style.display = "block";
 
-    // Si tu veux un mode par défaut avant la 1ère réponse API :
-    setDynamicRefresh("idle");
+      loadUserId();
+      fetchRaidState();
+
+      // tchat
+      fetchChat();
+      setInterval(fetchChat, 3000);
+
+      // refresh du raid
+      setDynamicRefresh("idle");
+    }
+
+    // lance l'init une fois le DOM prêt
+    document.addEventListener("DOMContentLoaded", initPage);
+
   </script>
 
 </body>
 </html>
+
 
 
 
