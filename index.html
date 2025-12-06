@@ -921,7 +921,23 @@
 
   <h1>🔥 Raid Au Coin Du Feu</h1>
 
-  <div class="container">
+  <!-- 🧭 Sélection des raids -->
+  <div id="raid-selector" class="raid-selector-card">
+    <h2>Choisis ton raid</h2>
+    <p id="raid-selector-hint">
+      Sélectionne un raid dans la liste ci-dessous pour ouvrir sa page.
+    </p>
+
+    <div id="raid-selector-loading">Chargement des raids...</div>
+    <div id="raid-selector-empty" style="display:none;">
+      Aucun raid disponible pour le moment.
+    </div>
+
+    <div id="raid-selector-list"></div>
+  </div>
+
+  <!-- 🌋 Page du raid (masquée tant qu’on n’a pas choisi) -->
+  <div id="raid-main" class="container" style="display:none;">
 
     <!-- STATUS -->
     <div class="status-pill status-idle" id="status-pill">
@@ -1019,7 +1035,7 @@
         <div id="hit-log-list"></div>
       </div>
     </div>
-
+  </div>
   <div id="last-update"></div>
 
   <!-- SCRIPT -->
@@ -2266,6 +2282,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
