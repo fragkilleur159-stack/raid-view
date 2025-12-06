@@ -27,9 +27,64 @@
     overflow-x: hidden;
   }
 
+
+  .raid-selector-card {
+     max-width: 900px;
+     margin: 20px auto 10px;
+     padding: 20px;
+     background: rgba(18, 24, 38, 0.95);
+     border-radius: 14px;
+     box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+     border: 1px solid rgba(255,255,255,0.05);
+   }
+
+  .raid-selector-card h2 {
+     margin: 0 0 8px;
+     font-size: 26px;
+   }
+
+  .raid-selector-card p {
+     margin: 0 0 16px;
+     color: #bbb;
+   }
+
+  .raid-selector-item {
+     width: 100%;
+     text-align: left;
+     margin-bottom: 10px;
+     padding: 10px 12px;
+     border-radius: 10px;
+     border: 1px solid rgba(255,255,255,0.07);
+     background: rgba(33, 41, 66, 0.95);
+     cursor: pointer;
+     transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.1s ease;
+   }
+
+  .raid-selector-item:hover {
+     transform: translateY(-1px);
+     box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+     border-color: rgba(255,255,255,0.18);
+   }
+
+  .raid-selector-title {
+     font-weight: 600;
+     font-size: 18px;
+   }
+
+  .raid-selector-sub {
+     font-size: 14px;
+     color: #aaa;
+   }
+
+  .raid-selector-status {
+     margin-top: 4px;
+     font-size: 13px;
+     color: #ffc46b;
+   }
+  
   .artifact-slot {
-  position: relative;
-}
+     position: relative;
+   }
 
   /* Tooltip custom basé sur data-effect */
   .artifact-slot[data-effect]:hover::after {
@@ -2282,6 +2337,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
