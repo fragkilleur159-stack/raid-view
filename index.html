@@ -1114,11 +1114,20 @@
   <script>
     // ⚙️ URL de ton API Render
     const API_BASE = "https://raid-api-la5d.onrender.com";
-    const STATE_ENDPOINT = API_BASE + "/raid/state";
-    const ATTACK_ENDPOINT = API_BASE + "/raid/attack";
-    const USER_ARTIFACTS_ENDPOINT = API_BASE + "/user/artifacts";
-    const USER_ARTIFACTS_EQUIP_ENDPOINT = API_BASE + "/user/artifacts/equip";
+
     const RAID_LIST_ENDPOINT = API_BASE + "/raid/list";
+
+    function getSelectedRaidIdFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("raid_id");
+    }
+
+    const RAID_ID = getSelectedRaidIdFromUrl();
+
+    const STATE_ENDPOINT  = API_BASE + "/raid/state?raid_id=" + encodeURIComponent(RAID_ID || "");
+    const CHAT_ENDPOINT   = API_BASE + "/raid/chat?raid_id=" + encodeURIComponent(RAID_ID || "");
+    const RESOLVE_ENDPOINT = API_BASE + "/raid/resolve_user?raid_id=" + encodeURIComponent(RAID_ID || "");
+
 
 
 
@@ -2473,6 +2482,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
