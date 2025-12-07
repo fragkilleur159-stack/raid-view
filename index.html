@@ -1924,9 +1924,7 @@ const RAID_ITEM_DISPLAY = {
       }
 
       try {
-        const url = STATE_ENDPOINT
-          + "?raid_id=" + encodeURIComponent(raidId)
-          + "&t=" + Date.now();
+        const url = STATE_ENDPOINT + "?raid_id=" + encodeURIComponent(raidId) + "&t=" + Date.now();
 
         const res = await fetch(url);
         data = await res.json();
@@ -2482,6 +2480,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
