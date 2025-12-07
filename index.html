@@ -1898,12 +1898,28 @@ const RAID_ITEM_DISPLAY = {
     }
 
 
+    function getSelectedRaidIdFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("raid_id");
+    }
+
     async function fetchRaidState() {
       let data = null;
-      const previous = prevState; // on garde l'ancien état pour comparer
+      const previous = prevState; // ancien état pour comparer
+
+      const raidId = getSelectedRaidIdFromUrl();
+
+      // si pas de raid choisi → on ne fait rien (ou tu peux afficher un message)
+      if (!raidId) {
+        return;
+      }
 
       try {
-        const res = await fetch(STATE_ENDPOINT + "?t=" + Date.now());
+        const url = STATE_ENDPOINT
+          + "?raid_id=" + encodeURIComponent(raidId)
+          + "&t=" + Date.now();
+
+        const res = await fetch(url);
         data = await res.json();
 
         // --- Détection entrée/sortie Upside Down ---
@@ -2082,12 +2098,16 @@ const RAID_ITEM_DISPLAY = {
       btn.disabled = true;
       status.textContent = "Envoi de ton attaque...";
 
-      try {
-        const res = await fetch(ATTACK_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: currentUserId })
-        });
+      const raidId = getSelectedRaidIdFromUrl();
+
+      await fetch(ATTACK_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: currentUserId,
+          raid_id: raidId,
+        }),
+      });
 
         if (!res.ok) {
           const err = await res.json().catch(()=>({}));
@@ -2182,13 +2202,16 @@ const RAID_ITEM_DISPLAY = {
         return;
       }
 
-      const res = await fetch(API_BASE + "/raid/use_item", {
+      const raidId = getSelectedRaidIdFromUrl();
+
+      await fetch(USER_ITEMS_USE_ENDPOINT, {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: currentUserId,
-          item_id: item.id
-        })
+          item_id,
+          raid_id: raidId,
+        }),
       });
 
       if (res.ok) {
@@ -2450,6 +2473,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
