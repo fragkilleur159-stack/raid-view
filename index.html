@@ -27,9 +27,79 @@
     overflow-x: hidden;
   }
 
+  .back-button {
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    font-size: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .back-button:hover {
+    background: rgba(255,255,255,0.25);
+  }
+  
+
+
+  .raid-selector-card {
+     max-width: 900px;
+     margin: 20px auto 10px;
+     padding: 20px;
+     background: rgba(18, 24, 38, 0.95);
+     border-radius: 14px;
+     box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+     border: 1px solid rgba(255,255,255,0.05);
+   }
+
+  .raid-selector-card h2 {
+     margin: 0 0 8px;
+     font-size: 26px;
+   }
+
+  .raid-selector-card p {
+     margin: 0 0 16px;
+     color: #bbb;
+   }
+
+  .raid-selector-item {
+     width: 100%;
+     text-align: left;
+     margin-bottom: 10px;
+     padding: 10px 12px;
+     border-radius: 10px;
+     border: 1px solid rgba(255,255,255,0.07);
+     background: rgba(33, 41, 66, 0.95);
+     cursor: pointer;
+     transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.1s ease;
+   }
+
+  .raid-selector-item:hover {
+     transform: translateY(-1px);
+     box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+     border-color: rgba(255,255,255,0.18);
+   }
+
+  .raid-selector-title {
+     font-weight: 600;
+     font-size: 18px;
+   }
+
+  .raid-selector-sub {
+     font-size: 14px;
+     color: #aaa;
+   }
+
+  .raid-selector-status {
+     margin-top: 4px;
+     font-size: 13px;
+     color: #ffc46b;
+   }
+  
   .artifact-slot {
-  position: relative;
-}
+     position: relative;
+   }
 
   /* Tooltip custom basé sur data-effect */
   .artifact-slot[data-effect]:hover::after {
@@ -921,7 +991,25 @@
 
   <h1>🔥 Raid Au Coin Du Feu</h1>
 
-  <div class="container">
+  <!-- 🧭 Sélection des raids -->
+  <div id="raid-selector" class="raid-selector-card">
+    <h2>Choisis ton raid</h2>
+    <p id="raid-selector-hint">
+      Sélectionne un raid dans la liste ci-dessous pour ouvrir sa page.
+    </p>
+
+    <div id="raid-selector-loading">Chargement des raids...</div>
+    <div id="raid-selector-empty" style="display:none;">
+      Aucun raid disponible pour le moment.
+    </div>
+
+    <div id="raid-selector-list"></div>
+  </div>
+  <button id="back-to-selector" class="back-button" style="display:none;">
+    ← Retour aux raids
+  </button>
+  <!-- 🌋 Page du raid (masquée tant qu’on n’a pas choisi) -->
+  <div id="raid-main" class="container" style="display:none;">
 
     <!-- STATUS -->
     <div class="status-pill status-idle" id="status-pill">
@@ -1019,17 +1107,28 @@
         <div id="hit-log-list"></div>
       </div>
     </div>
-
+  </div>
   <div id="last-update"></div>
 
   <!-- SCRIPT -->
   <script>
     // ⚙️ URL de ton API Render
     const API_BASE = "https://raid-api-la5d.onrender.com";
-    const STATE_ENDPOINT = API_BASE + "/raid/state";
-    const ATTACK_ENDPOINT = API_BASE + "/raid/attack";
-    const USER_ARTIFACTS_ENDPOINT = API_BASE + "/user/artifacts";
-    const USER_ARTIFACTS_EQUIP_ENDPOINT = API_BASE + "/user/artifacts/equip";
+
+    const RAID_LIST_ENDPOINT = API_BASE + "/raid/list";
+
+    function getSelectedRaidIdFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("raid_id");
+    }
+
+    const RAID_ID = getSelectedRaidIdFromUrl();
+
+    const STATE_ENDPOINT  = API_BASE + "/raid/state?raid_id=" + encodeURIComponent(RAID_ID || "");
+    const CHAT_ENDPOINT   = API_BASE + "/raid/chat?raid_id=" + encodeURIComponent(RAID_ID || "");
+    const RESOLVE_ENDPOINT = API_BASE + "/raid/resolve_user?raid_id=" + encodeURIComponent(RAID_ID || "");
+
+
 
 
     let prevState = null;
@@ -1052,6 +1151,73 @@
       "art_glace": "❄ Réduit les dégâts subis (exemple).",
       // ajoute ici les autres artefacts quand tu en crées
     };
+
+    function returnToRaidSelector() {
+      const params = new URLSearchParams(window.location.search);
+      params.delete("raid_id"); // 🔥 supprime le raid sélectionné
+      window.location.search = params.toString(); // recharge sur la page sélecteur
+    }
+
+    function getSelectedRaidIdFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("raid_id");
+    }
+
+    function goToRaid(raidId) {
+      const params = new URLSearchParams(window.location.search);
+      params.set("raid_id", raidId);
+      // recharge la page avec le raid choisi dans l'URL
+      window.location.search = params.toString();
+    }
+
+    async function loadRaidSelector() {
+      const loadingEl = document.getElementById("raid-selector-loading");
+      const emptyEl = document.getElementById("raid-selector-empty");
+      const listEl = document.getElementById("raid-selector-list");
+
+      if (!loadingEl || !emptyEl || !listEl) return;
+
+      loadingEl.style.display = "block";
+      emptyEl.style.display = "none";
+      listEl.innerHTML = "";
+
+      try {
+        const res = await fetch(RAID_LIST_ENDPOINT + "?t=" + Date.now());
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const raids = await res.json();
+
+        loadingEl.style.display = "none";
+
+        if (!Array.isArray(raids) || raids.length === 0) {
+          emptyEl.style.display = "block";
+          return;
+        }
+
+        raids.forEach(r => {
+          const btn = document.createElement("button");
+          btn.className = "raid-selector-item";
+
+          const name = r.label || r.name || ("Raid " + (r.id || "?"));
+          const boss = r.boss_pet_id ? ("Boss : " + r.boss_pet_id) : "";
+          let statusLabel = "Inactif";
+          if (r.status === "running") statusLabel = "🟢 En cours";
+          else if (r.status === "finished") statusLabel = "⚪ Terminé";
+
+          btn.innerHTML = `
+            <div class="raid-selector-title">${name}</div>
+            <div class="raid-selector-sub">${boss}</div>
+            <div class="raid-selector-status">${statusLabel}</div>
+          `;
+
+          btn.addEventListener("click", () => goToRaid(r.id || "current"));
+          listEl.appendChild(btn);
+        });
+      } catch (e) {
+        console.error("Erreur /raid/list :", e);
+        loadingEl.textContent = "Erreur lors du chargement des raids.";
+      }
+    }
+
 
     function getArtifactEffectText(artId) {
       return ARTIFACT_EFFECTS[artId] || "Effet inconnu pour cet artefact.";
@@ -1081,40 +1247,39 @@
 
 
     async function checkArtifactsUnlocked() {
-      const btn = document.getElementById("open-artifacts");
-      if (!btn) return;
+        const btn = document.getElementById("open-artifacts");
+        if (!btn) return;
 
-      // si on n'a pas encore d'user_id → on cache le bouton
-      if (!currentUserId) {
-        btn.style.display = "none";
-        return;
-      }
-
-      try {
-        const res = await fetch(
-          USER_ARTIFACTS_ENDPOINT + "?uid=" + encodeURIComponent(String(currentUserId))
-        );
-
-        if (!res.ok) {
-          // en cas d'erreur API, on laisse le bouton caché
-          btn.style.display = "none";
-          return;
+        // si pas encore d'utilisateur reconnu = cacher
+        if (!currentUserId) {
+            btn.style.display = "none";
+            return;
         }
 
-        const data = await res.json();
+        try {
+            const res = await fetch(
+                USER_ARTIFACTS_ENDPOINT + "?uid=" + encodeURIComponent(String(currentUserId))
+            );
 
-        if (data.unlocked) {
-          // 👉 joueur débloqué → on montre le bouton
-          btn.style.display = "inline-block";
-        } else {
-          // pas débloqué → on cache
-          btn.style.display = "none";
+            if (!res.ok) {
+                btn.style.display = "none";
+                return;
+            }
+
+            const data = await res.json();
+
+            console.log("[DEBUG] API artifacts:", data);
+
+            if (data.unlocked === true) {
+                btn.style.display = "inline-block";  // 🔥 ici ça affiche !
+            } else {
+                btn.style.display = "none";
+            }
+        } catch (e) {
+            btn.style.display = "none";
         }
-      } catch (e) {
-        // erreur réseau → on cache aussi
-        btn.style.display = "none";
-      }
     }
+
 
 
     // Appelé à chaque frame pendant la transition
@@ -1242,19 +1407,13 @@
     }
 
 async function fetchChat() {
-  const raidId = getSelectedRaidIdFromUrl();
-  if (!raidId) return;
   try {
-    const res = await fetch(API_BASE + "/raid/chat?raid_id=" + encodeURIComponent(raidId) + "&t=" + Date.now());
+    const res = await fetch(API_BASE + "/raid/chat?t=" + Date.now());
     if (!res.ok) return;
     const data = await res.json();
     chatMessagesCache = data;
     renderChat(chatMessagesCache);
   } catch (e) {
-    console.error("Erreur chat:", e);
-  }
-}
-catch (e) {
     console.error("Erreur chat:", e);
   }
 }
@@ -1264,12 +1423,6 @@ async function sendChatMessage() {
   const txt = (input.value || "").trim();
   if (!txt) return;
 
-  const raidId = getSelectedRaidIdFromUrl();
-  if (!raidId) {
-    console.warn("Pas de raid_id pour le chat.");
-    return;
-  }
-
   // On récupère le nom déjà saisi pour l'attaque (pseudo)
   const nameStored = localStorage.getItem("raid_user_name") || "";
   const pseudo = nameStored || "Inconnu";
@@ -1278,26 +1431,6 @@ async function sendChatMessage() {
     const res = await fetch(API_BASE + "/raid/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: currentUserId,   // peut être null → Spectateur auto
-        raid_id: raidId,
-        name: pseudo,
-        content: txt
-      })
-    });
-    if (!res.ok) {
-      console.warn("Chat POST failed");
-      return;
-    }
-
-    input.value = "";
-    // On recharge l'historique (facultatif)
-    fetchChat();
-  } catch (e) {
-    console.error("Erreur envoi chat:", e);
-  }
-}
-,
       body: JSON.stringify({
         user_id: currentUserId,   // peut être null → Spectateur auto
         name: pseudo,
@@ -1774,22 +1907,26 @@ const RAID_ITEM_DISPLAY = {
     }
 
 
+    function getSelectedRaidIdFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("raid_id");
+    }
+
     async function fetchRaidState() {
       let data = null;
-      const previous = prevState; // on garde l'ancien état pour comparer
+      const previous = prevState; // ancien état pour comparer
 
       const raidId = getSelectedRaidIdFromUrl();
+
+      // si pas de raid choisi → on ne fait rien (ou tu peux afficher un message)
       if (!raidId) {
-        console.warn("Pas de raid_id dans l'URL, fetchRaidState ignoré.");
         return;
       }
 
       try {
-        const res = await fetch(STATE_ENDPOINT + "?raid_id=" + encodeURIComponent(raidId) + "&t=" + Date.now());
-        if (!res.ok) {
-          console.error("Erreur HTTP /raid/state:", res.status);
-          return;
-        }
+        const url = STATE_ENDPOINT + "?raid_id=" + encodeURIComponent(raidId) + "&t=" + Date.now();
+
+        const res = await fetch(url);
         data = await res.json();
 
         // --- Détection entrée/sortie Upside Down ---
@@ -1806,31 +1943,6 @@ const RAID_ITEM_DISPLAY = {
             kind: "special", // pour une couleur différente si tu veux
             text: "🌌 Le Démogorgon plonge tout le raid dans le Monde à l'envers !",
           });
-          hitLog = hitLog.slice(0, 8);
-          updateHitLogView();
-          enterUpsideTheme();
-        } else if (prevUD && !nowUD) {
-          // On sort de l'Upside Down
-          hitLog.unshift({
-            type: "boss",
-            name: "Démogorgon",
-            damage: 0,
-            ts: Date.now(),
-            kind: "special",
-            text: "🌅 Le raid échappe au Monde à l'envers... pour l'instant.",
-          });
-          hitLog = hitLog.slice(0, 8);
-          updateHitLogView();
-          leaveUpsideTheme();
-        }
-
-        prevState = data;
-        applyStateToUI(data);
-      } catch (e) {
-        console.error("Erreur réseau /raid/state :", e);
-      }
-    }
-);
           hitLog = hitLog.slice(0, 8);
           updateHitLogView();
           enterUpsideDown();
@@ -1904,6 +2016,7 @@ const RAID_ITEM_DISPLAY = {
             updateBossView(data);
             updateParticipantsView(data);
             updateStatusPill(data);
+            applyArtifactsVisibility(data);
 
             prevState = data;  // ⚠ très important, on met à jour ici
 
@@ -1988,58 +2101,20 @@ const RAID_ITEM_DISPLAY = {
         return;
       } 
 
-      const raidId = getSelectedRaidIdFromUrl();
-      if (!raidId) {
-        status.textContent = "Aucun raid sélectionné.";
-        return;
-      }
-
       // 🔒 on bloque le bouton dès le clic
       btn.disabled = true;
       status.textContent = "Envoi de ton attaque...";
 
-      try {
-        const res = await fetch(ATTACK_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: currentUserId,
-            raid_id: raidId
-          }),
-        });
+      const raidId = getSelectedRaidIdFromUrl();
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ detail: "Erreur serveur" }));
-          status.textContent = "❌ " + (err.detail || "Erreur pendant l'attaque.");
-          btn.disabled = false;
-          return;
-        }
-
-        const result = await res.json().catch(() => ({}));
-
-        if (result.detail) {
-          status.textContent = "ℹ️ " + result.detail;
-        } else {
-          status.textContent = "✅ Attaque envoyée ! (si tu es inscrit au raid)";
-        }
-        // le bouton sera réactivé ou non par updateAttackButtonState
-      } catch (e) {
-        console.error(e);
-        status.textContent = "Erreur réseau lors de l'attaque.";
-        // en cas de vraie erreur réseau, tu peux éventuellement réactiver :
-        // btn.disabled = false;
-      }
-    }
-// 🔒 on bloque le bouton dès le clic
-      btn.disabled = true;
-      status.textContent = "Envoi de ton attaque...";
-
-      try {
-        const res = await fetch(ATTACK_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: currentUserId })
-        });
+      await fetch(ATTACK_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: currentUserId,
+          raid_id: raidId,
+        }),
+      });
 
         if (!res.ok) {
           const err = await res.json().catch(()=>({}));
@@ -2062,13 +2137,13 @@ const RAID_ITEM_DISPLAY = {
     async function loadItems() {
       if (!currentUserId) return [];
 
-      const raidId = getSelectedRaidIdFromUrl();
-      if (!raidId) return [];
-
-      const res = await fetch(API_BASE + "/raid/items?raid_id=" + encodeURIComponent(raidId) + "&user_id=" + encodeURIComponent(currentUserId));
+      const res = await fetch(API_BASE + "/raid/items?user_id=" + currentUserId);
       return await res.json();
     }
-async function openItemsPanel() {
+
+
+
+    async function openItemsPanel() {
       // 🔒 Sécurité : si on est dans le Monde à l'envers, pas d'objets
       if (worldPhase === "upside" || document.body.classList.contains("upside-theme")) {
         const status = document.getElementById("attack-status");
@@ -2112,13 +2187,6 @@ async function openItemsPanel() {
     async function useItem(item) {
       if (!currentUserId) return;
 
-      const raidId = getSelectedRaidIdFromUrl();
-      if (!raidId) {
-        const status = document.getElementById("attack-status");
-        if (status) status.textContent = "Aucun raid sélectionné.";
-        return;
-      }
-
       // ❌ Sécurité : pas d'objet dans le Monde à l'envers
       if (worldPhase === "upside" || worldPhase === "entering") {
         const status = document.getElementById("attack-status");
@@ -2141,49 +2209,16 @@ async function openItemsPanel() {
         return;
       }
 
-      const res = await fetch(API_BASE + "/raid/use_item", {
+      const raidId = getSelectedRaidIdFromUrl();
+
+      await fetch(USER_ITEMS_USE_ENDPOINT, {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: currentUserId,
+          item_id,
           raid_id: raidId,
-          item_id: item.id
-        })
-      });
-
-      if (res.ok) {
-        document.getElementById("attack-status").textContent =
-          "🎒 Objet utilisé !";
-        closeItemsPanel();
-        // Le log sera ajouté automatiquement par fetchRaidState
-      } else {
-        const err = await res.json().catch(()=>({detail:"Erreur"}));
-        document.getElementById("attack-status").textContent =
-          "❌ " + err.detail;
-      }
-    }
-hitLog.unshift({
-          type: "boss",
-          name: "Démogorgon",
-          damage: 0,
-          ts: Date.now(),
-          kind: "special",
-          text: `⚠️ ${item.name} est aspiré par le Monde à l'envers et ne se déclenche pas.`,
-        });
-        hitLog = hitLog.slice(0, 8);
-        updateHitLogView();
-
-        closeItemsPanel();
-        return;
-      }
-
-      const res = await fetch(API_BASE + "/raid/use_item", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({
-          user_id: currentUserId,
-          item_id: item.id
-        })
+        }),
       });
 
       if (res.ok) {
@@ -2360,21 +2395,12 @@ hitLog.unshift({
 
     
     async function resolveUserIdFromName(name) {
-      const raidId = getSelectedRaidIdFromUrl();
-      let url = API_BASE + "/raid/resolve_user?name=" + encodeURIComponent(name);
-      if (raidId) {
-        url += "&raid_id=" + encodeURIComponent(raidId);
-      }
+      const url = API_BASE + "/raid/resolve_user?name=" + encodeURIComponent(name);
       try {
         const res = await fetch(url);
         const data = await res.json();
         if (data.user_id) return data.user_id;
-      } catch (e) {
-        console.error("Erreur /raid/resolve_user :", e);
-      }
-      return null;
-    }
-catch(e) {}
+      } catch(e) {}
       return null;
     }
 
@@ -2396,6 +2422,10 @@ catch(e) {}
         sendChatMessage();
       }
     });
+    document.addEventListener("DOMContentLoaded", () => {
+        const btn = document.getElementById("back-to-selector");
+        if (btn) btn.onclick = returnToRaidSelector;
+    });
 
     
     // --- Dynamic refresh du raid ---
@@ -2412,21 +2442,53 @@ catch(e) {}
     }
 
     // --- Init au chargement de la page ---
-    loadUserId();
+    async function initPage() {
+      const raidMain = document.getElementById("raid-main");
+      const raidSelector = document.getElementById("raid-selector");
+      const selectedRaidId = getSelectedRaidIdFromUrl();
 
-    // 1er fetch raid + le raid lui-même adaptera le refresh (via setDynamicRefresh dans fetchRaidState)
-    fetchRaidState();
+      // 🧭 Aucun raid choisi → écran de sélection
+      if (!selectedRaidId) {
+        if (raidMain) raidMain.style.display = "none";
+        if (raidSelector) raidSelector.style.display = "block";
+        await loadRaidSelector();
+        return;
+      }
+      // Ici => un raid est sélectionné, donc on affiche le bouton retour
+      const backBtn = document.getElementById("back-to-selector");
+      if (backBtn) backBtn.style.display = "inline-block";
 
-    // 1er fetch tchat pour afficher l'historique directement
-    fetchChat();
-    setInterval(fetchChat, 3000); // raffraîchit ensuite toutes les 3s
+      // 🌋 Raid choisi → on affiche la page du raid
+      if (raidSelector) raidSelector.style.display = "none";
+      if (raidMain) raidMain.style.display = "block";
 
-    // Si tu veux un mode par défaut avant la 1ère réponse API :
-    setDynamicRefresh("idle");
+      loadUserId();
+      fetchRaidState();
+
+      // tchat
+      fetchChat();
+      setInterval(fetchChat, 3000);
+
+      // refresh du raid
+      setDynamicRefresh("idle");
+    }
+
+    // lance l'init une fois le DOM prêt
+    document.addEventListener("DOMContentLoaded", initPage);
+
   </script>
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
 
 
 
