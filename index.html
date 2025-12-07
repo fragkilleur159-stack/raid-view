@@ -27,6 +27,21 @@
     overflow-x: hidden;
   }
 
+  .back-button {
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    font-size: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .back-button:hover {
+    background: rgba(255,255,255,0.25);
+  }
+  
+
 
   .raid-selector-card {
      max-width: 900px;
@@ -990,7 +1005,9 @@
 
     <div id="raid-selector-list"></div>
   </div>
-
+  <button id="back-to-selector" class="back-button" style="display:none;">
+    ← Retour aux raids
+  </button>
   <!-- 🌋 Page du raid (masquée tant qu’on n’a pas choisi) -->
   <div id="raid-main" class="container" style="display:none;">
 
@@ -1125,6 +1142,12 @@
       "art_glace": "❄ Réduit les dégâts subis (exemple).",
       // ajoute ici les autres artefacts quand tu en crées
     };
+
+    function returnToRaidSelector() {
+      const params = new URLSearchParams(window.location.search);
+      params.delete("raid_id"); // 🔥 supprime le raid sélectionné
+      window.location.search = params.toString(); // recharge sur la page sélecteur
+    }
 
     function getSelectedRaidIdFromUrl() {
       const params = new URLSearchParams(window.location.search);
@@ -2369,6 +2392,10 @@ const RAID_ITEM_DISPLAY = {
         sendChatMessage();
       }
     });
+    document.addEventListener("DOMContentLoaded", () => {
+        const btn = document.getElementById("back-to-selector");
+        if (btn) btn.onclick = returnToRaidSelector;
+    });
 
     
     // --- Dynamic refresh du raid ---
@@ -2397,6 +2424,9 @@ const RAID_ITEM_DISPLAY = {
         await loadRaidSelector();
         return;
       }
+      // Ici => un raid est sélectionné, donc on affiche le bouton retour
+      const backBtn = document.getElementById("back-to-selector");
+      if (backBtn) backBtn.style.display = "inline-block";
 
       // 🌋 Raid choisi → on affiche la page du raid
       if (raidSelector) raidSelector.style.display = "none";
@@ -2420,6 +2450,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
