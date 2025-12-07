@@ -1124,9 +1124,9 @@
 
     const RAID_ID = getSelectedRaidIdFromUrl();
 
-    const STATE_ENDPOINT  = API_BASE + "/raid/state?raid_id=" + encodeURIComponent(RAID_ID || "");
-    const CHAT_ENDPOINT   = API_BASE + "/raid/chat?raid_id=" + encodeURIComponent(RAID_ID || "");
-    const RESOLVE_ENDPOINT = API_BASE + "/raid/resolve_user?raid_id=" + encodeURIComponent(RAID_ID || "");
+    const STATE_ENDPOINT   = API_BASE + "/raid/state";
+    const CHAT_ENDPOINT    = API_BASE + "/raid/chat";
+    const RESOLVE_ENDPOINT = API_BASE + "/raid/resolve_user";
 
 
 
@@ -1407,8 +1407,13 @@
     }
 
 async function fetchChat() {
+  const raidId = getSelectedRaidIdFromUrl();
+  if (!raidId) return;
+
   try {
-    const res = await fetch(API_BASE + "/raid/chat?t=" + Date.now());
+    const res = await fetch(
+      CHAT_ENDPOINT + "?raid_id=" + encodeURIComponent(raidId) + "&t=" + Date.now()
+    );
     if (!res.ok) return;
     const data = await res.json();
     chatMessagesCache = data;
@@ -1423,16 +1428,22 @@ async function sendChatMessage() {
   const txt = (input.value || "").trim();
   if (!txt) return;
 
-  // On récupère le nom déjà saisi pour l'attaque (pseudo)
+  const raidId = getSelectedRaidIdFromUrl();
+  if (!raidId) {
+    console.warn("Pas de raid_id pour le chat.");
+    return;
+  }
+
   const nameStored = localStorage.getItem("raid_user_name") || "";
   const pseudo = nameStored || "Inconnu";
 
   try {
-    const res = await fetch(API_BASE + "/raid/chat", {
+    const res = await fetch(CHAT_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        user_id: currentUserId,   // peut être null → Spectateur auto
+        user_id: currentUserId,
+        raid_id: raidId,
         name: pseudo,
         content: txt
       })
@@ -1442,7 +1453,6 @@ async function sendChatMessage() {
       return;
     }
     input.value = "";
-    // on rafraîchit le tchat juste après
     fetchChat();
   } catch (e) {
     console.error("Erreur envoi chat:", e);
@@ -2395,12 +2405,21 @@ const RAID_ITEM_DISPLAY = {
 
     
     async function resolveUserIdFromName(name) {
-      const url = API_BASE + "/raid/resolve_user?name=" + encodeURIComponent(name);
+      const raidId = getSelectedRaidIdFromUrl();
+      if (!raidId) return null;
+
+      const url =
+        RESOLVE_ENDPOINT +
+        "?raid_id=" + encodeURIComponent(raidId) +
+        "&name=" + encodeURIComponent(name);
+
       try {
         const res = await fetch(url);
         const data = await res.json();
         if (data.user_id) return data.user_id;
-      } catch(e) {}
+      } catch (e) {
+        console.error("Erreur /raid/resolve_user :", e);
+      }
       return null;
     }
 
@@ -2480,6 +2499,7 @@ const RAID_ITEM_DISPLAY = {
 
 </body>
 </html>
+
 
 
 
