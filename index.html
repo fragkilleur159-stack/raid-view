@@ -1112,1422 +1112,675 @@
 
   <!-- SCRIPT -->
   <script>
-    // ⚙️ URL de ton API Render
-    const API_BASE = "https://raid-api-la5d.onrender.com";
+  // ⚙️ URL de ton API Render
+  const API_BASE = "https://raid-api-la5d.onrender.com";
 
-    const RAID_LIST_ENDPOINT = API_BASE + "/raid/list";
+  // Endpoints
+  const RAID_LIST_ENDPOINT   = API_BASE + "/raid/list";
+  const STATE_ENDPOINT       = API_BASE + "/raid/state";
+  const CHAT_ENDPOINT        = API_BASE + "/raid/chat";
+  const RESOLVE_ENDPOINT     = API_BASE + "/raid/resolve_user";
+  const ATTACK_ENDPOINT      = API_BASE + "/raid/attack";
+  const ITEMS_ENDPOINT       = API_BASE + "/raid/items";
+  const USE_ITEM_ENDPOINT    = API_BASE + "/raid/use_item";
 
-    function getSelectedRaidIdFromUrl() {
-      const params = new URLSearchParams(window.location.search);
-      return params.get("raid_id");
-    }
+  // ---------- URL helpers ----------
+  function getSelectedRaidIdFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("raid_id");
+  }
 
-    const RAID_ID = getSelectedRaidIdFromUrl();
+  function goToRaid(raidId) {
+    const params = new URLSearchParams(window.location.search);
+    params.set("raid_id", raidId);
+    window.location.search = params.toString(); // reload
+  }
 
-    const STATE_ENDPOINT   = API_BASE + "/raid/state";
-    const CHAT_ENDPOINT    = API_BASE + "/raid/chat";
-    const RESOLVE_ENDPOINT = API_BASE + "/raid/resolve_user";
+  function returnToRaidSelector() {
+    const params = new URLSearchParams(window.location.search);
+    params.delete("raid_id");
+    window.location.search = params.toString(); // reload
+  }
 
+  // ---------- Selector ----------
+  let selectorInterval = null;
 
+  async function loadRaidSelector() {
+    const loadingEl = document.getElementById("raid-selector-loading");
+    const emptyEl   = document.getElementById("raid-selector-empty");
+    const listEl    = document.getElementById("raid-selector-list");
 
+    if (!loadingEl || !emptyEl || !listEl) return;
 
-    let prevState = null;
-    let currentUserId = null;
-    let hitLog = [];
-    let chatMessagesCache = [];
-    let worldPhase = "normal"; // "normal" | "entering" | "upside" | "leaving"
-    let worldProgress = 0;     // 0 → normal, 1 → upside
-    let themeAnimRunning = false;
-    let wasUpsideDown = false;
-    let upsideStableParticlesTimer = null;
-    let currentArtifactsSlots = { slot1: null, slot2: null, slot3: null };
-    let availableArtifacts = {}; // {art_id: {label, qty}}
+    loadingEl.style.display = "block";
+    loadingEl.textContent = "Chargement des raids...";
+    emptyEl.style.display = "none";
+    listEl.innerHTML = "";
 
+    try {
+      const res = await fetch(RAID_LIST_ENDPOINT + "?t=" + Date.now());
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const raids = await res.json();
 
-    // Effets connus des artefacts (par ID d'item)
-    const ARTIFACT_EFFECTS = {
-      "art_feu": "🔥 Augmente tes dégâts de 5%.",
-      "art_ombre": "🌑 3% de chances de doubler tes dégâts.",
-      "art_glace": "❄ Réduit les dégâts subis (exemple).",
-      // ajoute ici les autres artefacts quand tu en crées
-    };
+      loadingEl.style.display = "none";
 
-    function returnToRaidSelector() {
-      const params = new URLSearchParams(window.location.search);
-      params.delete("raid_id"); // 🔥 supprime le raid sélectionné
-      window.location.search = params.toString(); // recharge sur la page sélecteur
-    }
-
-    function getSelectedRaidIdFromUrl() {
-      const params = new URLSearchParams(window.location.search);
-      return params.get("raid_id");
-    }
-
-    function goToRaid(raidId) {
-      const params = new URLSearchParams(window.location.search);
-      params.set("raid_id", raidId);
-      // recharge la page avec le raid choisi dans l'URL
-      window.location.search = params.toString();
-    }
-
-    async function loadRaidSelector() {
-      const loadingEl = document.getElementById("raid-selector-loading");
-      const emptyEl = document.getElementById("raid-selector-empty");
-      const listEl = document.getElementById("raid-selector-list");
-
-      if (!loadingEl || !emptyEl || !listEl) return;
-
-      loadingEl.style.display = "block";
-      emptyEl.style.display = "none";
-      listEl.innerHTML = "";
-
-      try {
-        const res = await fetch(RAID_LIST_ENDPOINT + "?t=" + Date.now());
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const raids = await res.json();
-
-        loadingEl.style.display = "none";
-
-        if (!Array.isArray(raids) || raids.length === 0) {
-          emptyEl.style.display = "block";
-          return;
-        }
-
-        raids.forEach(r => {
-          const btn = document.createElement("button");
-          btn.className = "raid-selector-item";
-
-          const name = r.label || r.name || ("Raid " + (r.id || "?"));
-          const boss = r.boss_pet_id ? ("Boss : " + r.boss_pet_id) : "";
-          let statusLabel = "Inactif";
-          if (r.status === "running") statusLabel = "🟢 En cours";
-          else if (r.status === "finished") statusLabel = "⚪ Terminé";
-
-          btn.innerHTML = `
-            <div class="raid-selector-title">${name}</div>
-            <div class="raid-selector-sub">${boss}</div>
-            <div class="raid-selector-status">${statusLabel}</div>
-          `;
-
-          btn.addEventListener("click", () => goToRaid(r.id || "current"));
-          listEl.appendChild(btn);
-        });
-      } catch (e) {
-        console.error("Erreur /raid/list :", e);
-        loadingEl.textContent = "Erreur lors du chargement des raids.";
-      }
-    }
-
-
-    function getArtifactEffectText(artId) {
-      return ARTIFACT_EFFECTS[artId] || "Effet inconnu pour cet artefact.";
-    }
-
-
-    // Base de dégâts pour un coup "normal" (à adapter si tu changes le raid)
-    const BASE_DAMAGE = 150;
-
-    // Création des particules une seule fois
-    function initUpsideParticles() {
-      const container = document.getElementById("upside-particles");
-      if (!container) return;
-      if (container.dataset.initialized === "1") return;
-      container.dataset.initialized = "1";
-
-      const count = 60; // nombre de particules
-      for (let i = 0; i < count; i++) {
-        const p = document.createElement("div");
-        p.className = "upside-particle";
-        p.style.left = Math.random() * 100 + "vw";
-        p.style.animationDuration = (5 + Math.random() * 6) + "s";
-        p.style.animationDelay = (-Math.random() * 10) + "s";
-        container.appendChild(p);
-      }
-    }
-
-
-    async function checkArtifactsUnlocked() {
-        const btn = document.getElementById("open-artifacts");
-        if (!btn) return;
-
-        // si pas encore d'utilisateur reconnu = cacher
-        if (!currentUserId) {
-            btn.style.display = "none";
-            return;
-        }
-
-        try {
-            const res = await fetch(
-                USER_ARTIFACTS_ENDPOINT + "?uid=" + encodeURIComponent(String(currentUserId))
-            );
-
-            if (!res.ok) {
-                btn.style.display = "none";
-                return;
-            }
-
-            const data = await res.json();
-
-            console.log("[DEBUG] API artifacts:", data);
-
-            if (data.unlocked === true) {
-                btn.style.display = "inline-block";  // 🔥 ici ça affiche !
-            } else {
-                btn.style.display = "none";
-            }
-        } catch (e) {
-            btn.style.display = "none";
-        }
-    }
-
-
-
-    // Appelé à chaque frame pendant la transition
-    function applyThemeProgress() {
-      const body = document.body;
-      const particles = document.getElementById("upside-particles");
-
-      // Phase stable : on met ou enlève la classe
-      if (worldPhase === "upside") {
-        body.classList.add("upside-theme");
-      } else if (worldPhase === "normal") {
-        body.classList.remove("upside-theme");
+      if (!Array.isArray(raids) || raids.length === 0) {
+        emptyEl.style.display = "block";
+        return;
       }
 
-      // Opacité des particules :
-      // - en entrant → de 0 à 1
-      // - en Upside stable → 1
-      // - en sortant → de 1 à 0
-      if (particles) {
-        let alpha = 0;
-        if (worldPhase === "entering") alpha = worldProgress;
-        else if (worldPhase === "upside") alpha = 1;
-        else if (worldPhase === "leaving") alpha = worldProgress; // 1→0
-        particles.style.opacity = alpha.toFixed(2);
-      }
-    }
+      raids.forEach(r => {
+        const btn = document.createElement("button");
+        btn.className = "raid-selector-item";
 
-    function startThemeLoop() {
-      if (themeAnimRunning) return;
-      themeAnimRunning = true;
-      initUpsideParticles();
+        const name = r.label || r.name || ("Raid " + (r.id || "?"));
+        const boss = r.boss_pet_id ? ("Boss : " + r.boss_pet_id) : "";
+        let statusLabel = "Inactif";
+        if (r.status === "running") statusLabel = "🟢 En cours";
+        else if (r.status === "finished") statusLabel = "⚪ Terminé";
 
-      let last = performance.now();
+        btn.innerHTML = `
+          <div class="raid-selector-title">${escapeHtml(name)}</div>
+          <div class="raid-selector-sub">${escapeHtml(boss)}</div>
+          <div class="raid-selector-status">${escapeHtml(statusLabel)}</div>
+        `;
 
-      function step(now) {
-        const dt = (now - last) / 1000;
-        last = now;
-
-        const SPEED = 0.4; // secondes pour passer de 0 à 1
-
-        if (worldPhase === "entering") {
-          worldProgress += dt / SPEED;
-          if (worldProgress >= 1) {
-            worldProgress = 1;
-            worldPhase = "upside";
-          }
-        } else if (worldPhase === "leaving") {
-          worldProgress -= dt / SPEED;
-          if (worldProgress <= 0) {
-            worldProgress = 0;
-            worldPhase = "normal";
-          }
-        }
-
-        applyThemeProgress();
-
-        if (worldPhase === "entering" || worldPhase === "leaving") {
-          requestAnimationFrame(step);
-        } else {
-          // phase stable : on garde juste l’état, plus besoin d’animation
-          themeAnimRunning = false;
-        }
-      }
-
-      requestAnimationFrame(step);
-    }
-
-    function enterUpsideDown() {
-      // On commence la transition vers l'UD seulement si on n'y est pas déjà
-      if (worldPhase === "upside" || worldPhase === "entering") return;
-      worldPhase = "entering";
-      worldProgress = 0;
-      startThemeLoop();
-    }
-
-    function leaveUpsideDown() {
-      // On commence à revenir seulement si on est dedans
-      if (worldPhase === "normal" || worldPhase === "leaving") return;
-      worldPhase = "leaving";
-      worldProgress = 1;
-      startThemeLoop();
-    }
-    
-
-    function classifyHit(dmg) {
-      if (dmg >= BASE_DAMAGE * 3) return "ultimate"; // très gros coup
-      if (dmg >= BASE_DAMAGE * 2) return "crit";     // coup critique
-          return "normal";                               // coup normal
-    }
-
-
-
-    function renderChat(messages) {
-      const box = document.getElementById("chat-messages");
-      if (!box) return;
-      box.innerHTML = "";
-
-      messages.forEach(msg => {
-        const row = document.createElement("div");
-        row.className = "chat-message";
-
-        const nameSpan = document.createElement("span");
-
-        if (msg.is_spectator) {
-          const spec = document.createElement("span");
-          spec.className = "chat-spectator-tag";
-          spec.textContent = "[Spectateur]";
-          row.appendChild(spec);
-        }
-
-        nameSpan.className = "chat-name";
-        nameSpan.textContent = msg.name + " : ";
-        row.appendChild(nameSpan);
-
-        const textSpan = document.createElement("span");
-        textSpan.className = "chat-text";
-        textSpan.textContent = msg.content;
-        row.appendChild(textSpan);
-
-        box.appendChild(row);
+        btn.addEventListener("click", () => goToRaid(r.id || "current"));
+        listEl.appendChild(btn);
       });
-
-      // scroll en bas
-      box.scrollTop = box.scrollHeight;
+    } catch (e) {
+      console.error("Erreur /raid/list :", e);
+      loadingEl.style.display = "block";
+      loadingEl.textContent = "Erreur lors du chargement des raids (API injoignable ou route /raid/list).";
+      emptyEl.style.display = "none";
     }
-
-async function fetchChat() {
-  const raidId = getSelectedRaidIdFromUrl();
-  if (!raidId) return;
-
-  try {
-    const res = await fetch(
-      CHAT_ENDPOINT + "?raid_id=" + encodeURIComponent(raidId) + "&t=" + Date.now()
-    );
-    if (!res.ok) return;
-    const data = await res.json();
-    chatMessagesCache = data;
-    renderChat(chatMessagesCache);
-  } catch (e) {
-    console.error("Erreur chat:", e);
-  }
-}
-
-async function sendChatMessage() {
-  const input = document.getElementById("chat-input");
-  const txt = (input.value || "").trim();
-  if (!txt) return;
-
-  const raidId = getSelectedRaidIdFromUrl();
-  if (!raidId) {
-    console.warn("Pas de raid_id pour le chat.");
-    return;
   }
 
-  const nameStored = localStorage.getItem("raid_user_name") || "";
-  const pseudo = nameStored || "Inconnu";
+  // ---------- Raid page ----------
+  let prevState = null;
+  let currentUserId = null;
+  let refreshInterval = null;
+  let chatInterval = null;
 
-  try {
-    const res = await fetch(CHAT_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: currentUserId,
-        raid_id: raidId,
-        name: pseudo,
-        content: txt
-      })
-    });
-    if (!res.ok) {
-      console.warn("Chat POST failed");
+  function formatNumber(n) {
+    return (n || 0).toLocaleString("fr-FR");
+  }
+
+  function setLastUpdate() {
+    const el = document.getElementById("last-update");
+    if (!el) return;
+    el.textContent = "Dernière mise à jour : " + new Date().toLocaleTimeString("fr-FR");
+  }
+
+  function updateStatusPill(data) {
+    const pill = document.getElementById("status-pill");
+    const text = document.getElementById("status-text");
+    if (!pill || !text) return;
+
+    pill.classList.remove("status-idle","status-running","status-finished");
+
+    if (!data || data.status === "idle") {
+      pill.classList.add("status-idle");
+      text.textContent = "Aucun raid";
+    } else if (data.status === "running") {
+      pill.classList.add("status-running");
+      text.textContent = "Raid en cours";
+    } else if (data.status === "finished") {
+      pill.classList.add("status-finished");
+      text.textContent = "Raid terminé";
+    } else {
+      pill.classList.add("status-idle");
+      text.textContent = "Aucun raid";
+    }
+  }
+
+  function updateBossView(data) {
+    const bossNameEl   = document.getElementById("boss-name");
+    const bossStarsEl  = document.getElementById("boss-stars");
+    const hpTextEl     = document.getElementById("hp-text");
+    const hpFillEl     = document.getElementById("hp-fill");
+    const timerStatus  = document.getElementById("timer-status");
+    const timerRange   = document.getElementById("timer-range");
+    const bossImgEl    = document.getElementById("boss-image");
+
+    if (!bossNameEl || !bossStarsEl || !hpTextEl || !hpFillEl) return;
+
+    if (!data || data.status !== "running") {
+      bossNameEl.textContent = "Aucun raid actif";
+      bossStarsEl.textContent = "";
+      hpTextEl.textContent = "0 / 0";
+      hpFillEl.style.transform = "scaleX(0)";
+      if (timerStatus) timerStatus.textContent = "Le raid est terminé ou inactif.";
+      if (timerRange) timerRange.textContent = "";
+      if (bossImgEl) {
+        bossImgEl.src = "";
+        bossImgEl.style.opacity = "0.0";
+      }
       return;
     }
-    input.value = "";
-    fetchChat();
-  } catch (e) {
-    console.error("Erreur envoi chat:", e);
+
+    const bossName = data.boss || "Boss";
+    const hpCur = Number(data.hp_current) || 0;
+    const hpMax = Math.max(1, Number(data.hp_max) || 1);
+    const stars = Number(data.stars) || 0;
+
+    bossNameEl.textContent = bossName;
+    bossStarsEl.textContent = "⭐".repeat(stars);
+
+    hpTextEl.textContent = `${formatNumber(hpCur)} / ${formatNumber(hpMax)}`;
+    hpFillEl.style.transform = `scaleX(${Math.max(0, Math.min(1, hpCur / hpMax))})`;
+
+    if (timerStatus) {
+      const now = Date.now()/1000;
+      const end = data.end || null;
+      if (!end) timerStatus.textContent = "";
+      else if (data.status === "finished" || end <= now) timerStatus.textContent = "⏱ Terminé";
+      else timerStatus.textContent = "⏱ En cours";
+    }
+    if (timerRange && data.start && data.end) {
+      timerRange.textContent =
+        `Du ${new Date(data.start*1000).toLocaleString("fr-FR")} au ${new Date(data.end*1000).toLocaleString("fr-FR")}`;
+    }
+
+    // Image du boss (si tu as assets/<boss>.png)
+    if (bossImgEl && data.boss) {
+      const imgPath = `assets/${data.boss}.png`;
+      bossImgEl.style.opacity = "0.0";
+      bossImgEl.src = imgPath;
+      bossImgEl.onload = () => bossImgEl.style.opacity = "1";
+      bossImgEl.onerror = () => bossImgEl.style.opacity = "0.0";
+    }
   }
-}
 
-// Mapping pour afficher proprement les objets utilisés
-const RAID_ITEM_DISPLAY = {
-  "potion_pet_petite": { label: "Petite Potion de vie", type: "heal_pet" },
-  "potion_pet_grosse": { label: "Grosse Potion de vie", type: "heal_pet" },
-  "bomb_raid_petite": { label: "Petite Bombe de Raid", type: "damage_boss" },
-  "bomb_raid_grosse": { label: "Grosse Bombe de Raid", type: "damage_boss" },
-};    
-    
-    function updateHitLogView() {
-      const list = document.getElementById("hit-log-list");
-      if (!list) return;
-      list.innerHTML = "";
+  function updateParticipantsView(data) {
+    const listEl  = document.getElementById("participants-list");
+    const emptyEl = document.getElementById("participants-empty");
+    const countEl = document.getElementById("participants-count");
+    const turnEl  = document.getElementById("turn-indicator");
 
-      hitLog.forEach(entry => {
-        const row = document.createElement("div");
-        row.className = "hit-log-row " + (entry.kind || "normal");
+    if (!listEl || !emptyEl || !countEl) return;
 
-        if (entry.type === "boss") {
-          row.classList.add("boss");
-        }
+    const participants = Array.isArray(data?.participants) ? data.participants : [];
+    const currentTurn = data?.current_turn || null;
 
-        const nameSpan = document.createElement("span");
-        nameSpan.className = "hit-name";
-
-        const dmgSpan = document.createElement("span");
-        dmgSpan.className = "hit-dmg";
-
-        /* 🌌 CASE 1 — MESSAGE SPÉCIAL (Upside Down, etc.) */
-        if (entry.text) {
-          // Affichage texte seul
-          nameSpan.textContent = entry.text;
-          dmgSpan.textContent = "";
-        }
-
-        /* 🔥 CASE 2 — BOSS */
-        else if (entry.type === "boss") {
-          nameSpan.textContent = entry.name || "Boss";
-          dmgSpan.textContent = `-${formatNumber(entry.damage)} dmg`;
-        }
-
-        /* 🧪 CASE 3 — UTILISATION D’ITEM */
-        else if (entry.type === "item") {
-          nameSpan.textContent = entry.name || "Joueur";
-
-          if (entry.message) {
-            dmgSpan.textContent = entry.message;
-          } else {
-            const itemId = entry.item_id || "Objet";
-            const val = entry.damage || 0;
-            dmgSpan.textContent =
-              `${itemId} (${val > 0 ? "+" + formatNumber(val) : formatNumber(val)})`;
-          }
-        }
-
-        /* 🗡️ CASE 4 — COUP CLASSIQUE D’UN JOUEUR */
-        else {
-          nameSpan.textContent = entry.name || "Joueur";
-          dmgSpan.textContent = `-${formatNumber(entry.damage)} dmg`;
-        }
-
-        row.appendChild(nameSpan);
-        row.appendChild(dmgSpan);
-        list.appendChild(row);
-      });
-    }
-
-
-
-    function triggerBossAttackFlash() {
-      const overlay = document.createElement("div");
-      overlay.className = "boss-attack-overlay";
-      document.body.appendChild(overlay);
-      setTimeout(() => overlay.remove(), 600);
-    }
-
-    // Récupère l'ID stocké
-    function loadUserId() {
-      try {
-        const storedName = localStorage.getItem("raid_user_name");
-        const storedId = localStorage.getItem("raid_user_id");
-
-        const input = document.getElementById("user-name-input");
-        if (storedName && input) {
-          input.value = storedName;
-        }
-        if (storedId) {
-          currentUserId = storedId;
-        }
-      } catch (e) {}
-
-      updateAttackButtonState();
-      checkArtifactsUnlocked();
-    }
-
-    async function saveUserName() {
-      const input = document.getElementById("user-name-input");
-      const val = (input.value || "").trim();
-
-      if (!val) {
-        currentUserId = null;
-        localStorage.removeItem("raid_user_name");
-        localStorage.removeItem("raid_user_id");
-        updateAttackButtonState();
-        checkArtifactsUnlocked();
-        return;
-      }
-
-      // On garde le pseudo
-      localStorage.setItem("raid_user_name", val);
-
-      // On va chercher l'ID associé
-      const resolved = await resolveUserIdFromName(val);
-
-      if (!resolved) {
-        currentUserId = null;
-        localStorage.removeItem("raid_user_id");
-        document.getElementById("attack-status").textContent =
-          "❌ Joueur introuvable dans le raid. Assure-toi d'avoir fait /raid_join.";
-      } else {
-        currentUserId = resolved;
-        localStorage.setItem("raid_user_id", resolved);
-        document.getElementById("attack-status").textContent =
-          "✅ Joueur reconnu : " + val;
-      }
-
-      updateAttackButtonState();
-      checkArtifactsUnlocked();
-    }
-
-    function updateAttackButtonState(statusData) {
-      const btn = document.getElementById("attack-button");
-      const status = document.getElementById("attack-status");
-
-      if (!currentUserId) {
-        btn.disabled = true;
-        status.textContent = "Renseigne ton pseudo Discord pour pouvoir attaquer.";
-        return;
-      }
-      if (!statusData || statusData.status !== "running") {
-        btn.disabled = true;
-        status.textContent = "Aucun raid actif.";
-        return;
-      }
-      // 🔎 trouver mon enregistrement de participant
-      const me = (statusData.participants || []).find(
-        p => String(p.user_id) === String(currentUserId)
-      );
-      if (!me) {
-        btn.disabled = true;
-        status.textContent = "Tu n'es pas inscrit au raid (/raid_join).";
-        return;
-      }
-      // 🔒 si mon pet est K.O. -> plus d'attaque
-      if (me.hp_current !== undefined && me.hp_max !== undefined) {
-        if (me.hp_max > 0 && me.hp_current <= 0) {
-          btn.disabled = true;
-          status.textContent = "Ton familier est K.O., tu ne peux plus attaquer dans ce raid.";
-          return;
-        }
-      }
-
-      // 🔁 contrôle du tour
-      if (statusData.current_turn && currentUserId) {
-        if (String(statusData.current_turn) !== String(currentUserId)) {
-          btn.disabled = true;
-          status.textContent = "Ce n'est pas ton tour. Patiente…";
-          return;
-        }
-      }
-
-      btn.disabled = false;
-      status.textContent = "C'est ton tour ! Clique sur Attaquer.";
-    }
-
-    function formatNumber(n) {
-      return (n || 0).toLocaleString("fr-FR");
-    }
-
-    function starsLabel(stars) {
-      stars = Number(stars) || 0;
-      const s = "⭐".repeat(Math.max(1, Math.min(7, stars)));
-      switch (stars) {
-        case 2: return s + " (Facile)";
-        case 3: return s + " (Normal)";
-        case 4: return s + " (Difficile)";
-        case 5: return s + " (Expert)";
-        case 6: return s + " (Hardcore)";
-        case 7: return s + " (IMPOSIBLE)";
-        default: return s;
-      }
-    }
-
-    function formatTimer(startTs, endTs, status) {
-      const now = Date.now() / 1000;
-      if (!startTs || !endTs) return "";
-      const remaining = endTs - now;
-      if (status === "finished" || remaining <= 0) return "⏱ Terminé";
-      const total = endTs - startTs;
-      return `⏱ ${Math.round((now-startTs)/60)} min / ${Math.round(total/60)} min`;
-    }
-
-    function updateBossView(data) {
-      const bossNameEl = document.getElementById("boss-name");
-      const bossStarsEl = document.getElementById("boss-stars");
-      const hpTextEl = document.getElementById("hp-text");
-      const hpFillEl = document.getElementById("hp-fill");
-      const hpWrapperEl = document.getElementById("hp-wrapper");
-      const timerStatusEl = document.getElementById("timer-status");
-      const timerRangeEl = document.getElementById("timer-range");
-      const diffLabelEl = document.getElementById("difficulty-label");
-      const bossImgEl = document.getElementById("boss-image");
-      const udLabel = document.getElementById("upside-label");
-      
-      if (udLabel) {
-        if (data.upside_down_active) {
-          const left = data.upside_down_turns_left || 0;
-          udLabel.textContent = `🌌 Monde à l'envers (tour(s) restant(s) du boss : ${left})`;
-          udLabel.style.display = "block";
-        } else {
-          udLabel.textContent = "";
-          udLabel.style.display = "none";
-        }
-      }
-
-      if (!data || data.status !== "running") {
-        bossNameEl.textContent = "Aucun raid actif";
-        bossStarsEl.textContent = "";
-        hpTextEl.textContent = "0 / 0";
-        hpFillEl.style.transform = "scaleX(0)";
-        diffLabelEl.textContent = "";
-        timerStatusEl.textContent = "Le raid est terminé ou inactif.";
-        timerRangeEl.textContent = "";
-        if (bossImgEl) {
-          bossImgEl.src = "";
-          bossImgEl.style.opacity = "0.0";
-        }
-        return;
-      }
-
-      const bossName = data.boss || "Boss";
-      const hpCur = Number(data.hp_current) || 0;
-      const hpMax = Math.max(1, Number(data.hp_max) || 1);
-      const stars = Number(data.stars) || 0;
-
-      bossNameEl.textContent = bossName;
-      bossStarsEl.textContent = "⭐".repeat(stars);
-
-      // Image du boss: assets/<ID>.png
-      if (bossImgEl && data.boss) {
-        const imgPath = `assets/${data.boss}.png`;
-        bossImgEl.style.opacity = "0.0";
-        bossImgEl.src = imgPath;
-        bossImgEl.onload = () => {
-          bossImgEl.style.opacity = "1";
-        };
-        bossImgEl.onerror = () => {
-          bossImgEl.style.opacity = "0.0";
-        };
-      }
-
-      hpTextEl.textContent = `${formatNumber(hpCur)} / ${formatNumber(hpMax)}`;
-      hpFillEl.style.transform = `scaleX(${Math.max(0, Math.min(1, hpCur/hpMax))})`;
-
-      diffLabelEl.textContent = starsLabel(stars);
-
-      timerStatusEl.textContent = formatTimer(data.start, data.end, data.status);
-      if (data.start && data.end) {
-        timerRangeEl.textContent =
-          `Du ${new Date(data.start*1000).toLocaleString("fr-FR")} au ${new Date(data.end*1000).toLocaleString("fr-FR")}`;
-      } else {
-        timerRangeEl.textContent = "";
-      }
-
-            // Animation si le boss perd des HP
-      if (prevState && prevState.hp_current > hpCur) {
-        const diff = prevState.hp_current - hpCur;
-
-        // 1) flash sur la barre de PV
-        hpWrapperEl.classList.remove("boss-hit");
-        void hpWrapperEl.offsetWidth;
-        hpWrapperEl.classList.add("boss-hit");
-
-        // 2) shake sur l'image du boss
-        const bossImgWrapper = document.querySelector(".boss-image-wrapper");
-        if (bossImgWrapper) {
-          bossImgWrapper.classList.remove("hit");
-          void bossImgWrapper.offsetWidth;
-          bossImgWrapper.classList.add("hit");
-        }
-
-        // 3) popup de dégâts colorée
-        if (diff > 0) {
-          const kind = classifyHit(diff); // normal / crit / ultimate
-          const popup = document.createElement("div");
-          popup.className = "damage-popup " + kind;
-          popup.textContent = "-" + formatNumber(diff);
-
-          hpWrapperEl.appendChild(popup);
-
-          setTimeout(() => popup.remove(), 900);
-
-          // 4) ajout au log des coups (coup du joueur)
-          let attackerName = null;
-          const attackerId = prevState.current_turn;
-          if (attackerId && Array.isArray(data.participants)) {
-            const p = data.participants.find(pp => String(pp.user_id) === String(attackerId));
-            if (p) attackerName = p.name;
-          }
-
-          hitLog.unshift({
-            type: "player",
-            name: attackerName || "Joueur inconnu",
-            damage: diff,
-            ts: Date.now(),
-            kind: kind,
-          });
-          hitLog = hitLog.slice(0, 8); // on garde les 8 derniers
-          updateHitLogView();
-        }
-      }
-    }
-
-    function updateParticipantsView(data) {
-      const listEl = document.getElementById("participants-list");
-      const emptyEl = document.getElementById("participants-empty");
-      const countEl = document.getElementById("participants-count");
-      const turnIndEl = document.getElementById("turn-indicator");
-
-      const participants = Array.isArray(data.participants) ? data.participants : [];
-      const currentTurn = data.current_turn || null;
-
-      if (participants.length === 0) {
-        listEl.innerHTML = "";
-        emptyEl.style.display = "block";
-        countEl.textContent = "0 joueurs";
-        if (turnIndEl) turnIndEl.textContent = "Tour de : —";
-        return;
-      }
-
-      emptyEl.style.display = "none";
-      countEl.textContent = `${participants.length} joueurs`;
-
-      // Joueur dont c'est le tour
-      let currentName = null;
-      if (currentTurn) {
-        const cur = participants.find(p => String(p.user_id) === String(currentTurn));
-        if (cur) currentName = cur.name || cur.user_id;
-      }
-      if (turnIndEl) {
-        turnIndEl.textContent = currentName
-          ? `Tour de : ${currentName}`
-          : "Tour de : —";
-      }
-
+    if (participants.length === 0) {
       listEl.innerHTML = "";
-      participants.sort((a,b)=>b.damage - a.damage);
-
-      let max = participants[0]?.damage || 1;
-
-            for (let p of participants) {
-                const row = document.createElement("div");
-                row.classList.add("participant-row");
-
-                // ✅ on récupère les HP si l'API les envoie (sinon 0)
-                const hpCur = p.hp_current || 0;
-                const hpMax = p.hp_max || 0;
-                const isDead = (hpMax > 0 && hpCur <= 0) || p.alive === false;
-
-                if (isDead) {
-                  row.classList.add("dead");
-                }
-
-                // Nom + crâne si mort
-                const nameHtml = isDead
-                  ? `<div class="participant-name dead-name">💀 ${p.name}</div>`
-                  : `<div class="participant-name">${p.name}</div>`;
-
-                // Pet + HP / K.O.
-                let petHtml = `<div class="participant-pet">${p.pet}</div>`;
-                if (hpMax > 0) {
-                  if (isDead) {
-                    petHtml += `<div class="participant-hp ko">K.O.</div>`;
-                  } else {
-                    petHtml += `<div class="participant-hp">${formatNumber(hpCur)} / ${formatNumber(hpMax)} HP</div>`;
-                  }
-                }
-
-                const col1 = document.createElement("div");
-                col1.innerHTML = nameHtml + petHtml;
-
-                const col2 = document.createElement("div");
-                col2.className = "participant-damage";
-                const barOuter = document.createElement("div");
-                barOuter.className = "participant-bar-outer";
-                const barInner = document.createElement("div");
-                barInner.className = "participant-bar-inner";
-                barInner.style.transform = `scaleX(${p.damage/max})`;
-
-                barOuter.appendChild(barInner);
-                col2.innerHTML = `${formatNumber(p.damage)} dmg`;
-                col2.appendChild(barOuter);
-
-                row.appendChild(col1);
-                row.appendChild(col2);
-                listEl.appendChild(row);
-              }
-            }
-
-    function updateStatusPill(data) {
-      const pill = document.getElementById("status-pill");
-      const text = document.getElementById("status-text");
-
-      pill.classList.remove("status-idle","status-running","status-finished");
-
-      if (!data) {
-        pill.classList.add("status-idle");
-        text.textContent = "Aucun raid";
-      } else if (data.status === "running") {
-        pill.classList.add("status-running");
-        text.textContent = "Raid en cours";
-      } else if (data.status === "finished") {
-        pill.classList.add("status-finished");
-        text.textContent = "Raid terminé";
-      } else {
-        pill.classList.add("status-idle");
-        text.textContent = "Aucun raid";
-      }
+      emptyEl.style.display = "block";
+      countEl.textContent = "0 joueurs";
+      if (turnEl) turnEl.textContent = "Tour de : —";
+      return;
     }
 
-    function setLastUpdate() {
-      document.getElementById("last-update").textContent =
-        "Dernière mise à jour : " + new Date().toLocaleTimeString("fr-FR");
+    emptyEl.style.display = "none";
+    countEl.textContent = `${participants.length} joueurs`;
+
+    // current turn label
+    if (turnEl) {
+      const cur = currentTurn ? participants.find(p => String(p.user_id) === String(currentTurn)) : null;
+      turnEl.textContent = cur ? `Tour de : ${cur.name || cur.user_id}` : "Tour de : —";
     }
 
+    participants.sort((a,b)=> (b.damage||0) - (a.damage||0));
+    const max = Math.max(1, participants[0]?.damage || 1);
 
-    function applyArtifactsVisibility(data) {
-      const btnArtifacts = document.getElementById("open-artifacts");
-      if (!btnArtifacts || !currentUserId) return;
+    listEl.innerHTML = "";
+    for (const p of participants) {
+      const row = document.createElement("div");
+      row.className = "participant-row";
 
-      let me = null;
-      if (data.participants) {
-        for (const p of data.participants) {
-          if (String(p.user_id) === String(currentUserId)) {
-            me = p;
-            break;
-          }
-        }
-      }
+      const hpCur = Number(p.hp_current) || 0;
+      const hpMax = Number(p.hp_max) || 0;
+      const isDead = (hpMax > 0 && hpCur <= 0);
 
-      if (me && me.artifacts_unlocked) {
-        btnArtifacts.style.display = "inline-block";
-      } else {
-        btnArtifacts.style.display = "none";
-        document.getElementById("artifacts-panel").style.display = "none";
-      }
+      if (currentTurn && String(p.user_id) === String(currentTurn)) row.classList.add("current-turn");
+      if (isDead) row.classList.add("dead");
+
+      const col1 = document.createElement("div");
+      col1.innerHTML = `
+        <div class="participant-name">${isDead ? "💀 " : ""}${escapeHtml(p.name || "Joueur")}</div>
+        <div class="participant-pet">${escapeHtml(p.pet || "")}</div>
+        ${hpMax > 0 ? `<div class="participant-hp">${isDead ? "K.O." : `${formatNumber(hpCur)} / ${formatNumber(hpMax)} HP`}</div>` : ""}
+      `;
+
+      const col2 = document.createElement("div");
+      col2.className = "participant-damage";
+      col2.textContent = `${formatNumber(p.damage || 0)} dmg`;
+
+      const barOuter = document.createElement("div");
+      barOuter.className = "participant-bar-outer";
+      const barInner = document.createElement("div");
+      barInner.className = "participant-bar-inner";
+      barInner.style.transform = `scaleX(${Math.max(0, Math.min(1, (p.damage||0)/max))})`;
+      barOuter.appendChild(barInner);
+      col2.appendChild(barOuter);
+
+      row.appendChild(col1);
+      row.appendChild(col2);
+      listEl.appendChild(row);
     }
-
-
-    function getSelectedRaidIdFromUrl() {
-      const params = new URLSearchParams(window.location.search);
-      return params.get("raid_id");
-    }
-
-    async function fetchRaidState() {
-      let data = null;
-      const previous = prevState; // ancien état pour comparer
-
-      const raidId = getSelectedRaidIdFromUrl();
-
-      // si pas de raid choisi → on ne fait rien (ou tu peux afficher un message)
-      if (!raidId) {
-        return;
-      }
-
-      try {
-        const url = STATE_ENDPOINT + "?raid_id=" + encodeURIComponent(raidId) + "&t=" + Date.now();
-
-        const res = await fetch(url);
-        data = await res.json();
-
-        // --- Détection entrée/sortie Upside Down ---
-        const prevUD = previous ? !!previous.upside_down_active : false;
-        const nowUD  = !!data.upside_down_active;
-
-       if (!prevUD && nowUD) {
-          // On vient d'entrer dans l'Upside Down
-          hitLog.unshift({
-            type: "boss",
-            name: "Démogorgon",
-            damage: 0,
-            ts: Date.now(),
-            kind: "special", // pour une couleur différente si tu veux
-            text: "🌌 Le Démogorgon plonge tout le raid dans le Monde à l'envers !",
-          });
-          hitLog = hitLog.slice(0, 8);
-          updateHitLogView();
-          enterUpsideDown();
-          // 🔒 On ferme le panel d'objets si il était ouvert
-          const panel = document.getElementById("items-panel");
-          if (panel) {
-            panel.style.display = "none";
-          }
-
-          // 🔒 On désactive le bouton Objets → déclenche le style :disabled + glitch
-          const itemsBtn = document.getElementById("open-items");
-          if (itemsBtn) itemsBtn.disabled = true;
-        
-        } else if (prevUD && !nowUD) {
-          // On vient de sortir de l'Upside Down
-          hitLog.unshift({
-            type: "boss",
-            name: "Démogorgon",
-            damage: 0,
-            ts: Date.now(),
-            kind: "special",
-            text: "🌅 Le raid ressort du Monde à l'envers.",
-          });
-          hitLog = hitLog.slice(0, 8);
-          updateHitLogView();
-          // ✅ On réactive le bouton Objets
-          const itemsBtn = document.getElementById("open-items");
-          if (itemsBtn) itemsBtn.disabled = false;
-          leaveUpsideDown();
-        }
-
-        // 🔥 Détection des attaques du boss : on regarde les HP des pets
-        if (previous && Array.isArray(previous.participants) && Array.isArray(data.participants)) {
-          const oldById = {};
-          for (const p of previous.participants) {
-            oldById[String(p.user_id)] = p;
-          }
-
-          let bossDidSomething = false;
-
-          for (const p of data.participants) {
-            const old = oldById[String(p.user_id)];
-            if (!old) continue;
-
-            const oldHp = old.hp_current || 0;
-            const newHp = p.hp_current || 0;
-
-            if (oldHp > newHp) {
-              const diff = oldHp - newHp;
-              const kind = classifyHit(diff); // normal / crit / ultimate
-
-              hitLog.unshift({
-                type: "boss",
-                name: `Boss → ${p.name || "???"} `,
-                damage: diff,
-                ts: Date.now(),
-                kind: kind,
-              });
-              bossDidSomething = true;
-            }
-          }
-
-          if (bossDidSomething) {
-            hitLog = hitLog.slice(0, 8);
-            updateHitLogView();
-            triggerBossAttackFlash(); // petit flash rouge quand le boss frappe
-          }
-        }
-
-            // 🔁 mise à jour classique de l'affichage
-            updateBossView(data);
-            updateParticipantsView(data);
-            updateStatusPill(data);
-            applyArtifactsVisibility(data);
-
-            prevState = data;  // ⚠ très important, on met à jour ici
-
-            // 🔥 Détection d'une utilisation d'objet
-            if (previous && Array.isArray(previous.participants) && Array.isArray(data.participants)) {
-              const oldById = {};
-              for (const p of previous.participants) {
-                oldById[String(p.user_id)] = p;
-              }
-
-              const oldBossHp = previous.hp_current || 0;
-              const newBossHp = data.hp_current || 0;
-
-              let itemUsed = false;
-
-              for (const p of data.participants) {
-                const old = oldById[String(p.user_id)];
-                if (!old) continue;
-
-                const oldItem = old.last_item_used || null;
-                const newItem = p.last_item_used || null;
-
-                // nouvel objet utilisé (ou objet différent)
-                if (newItem && newItem !== oldItem) {
-                  const val = p.last_item_value || 0;
-
-                  const deltaPet  = (p.hp_current || 0) - (old.hp_current || 0);
-                  const deltaBoss = oldBossHp - newBossHp;
-
-                  let msg;
-                  if (deltaPet > 0) {
-                    // potion de vie
-                    msg = `utilise ${newItem} (+${formatNumber(val)} PV)`;
-                  } else if (deltaBoss > 0) {
-                    // bombe
-                    msg = `utilise ${newItem} (-${formatNumber(val)} PV boss)`;
-                  } else if (val > 0) {
-                    msg = `utilise ${newItem} (${formatNumber(val)})`;
-                  } else {
-                    msg = `utilise ${newItem}`;
-                  }
-
-                  hitLog.unshift({
-                    type: "item",
-                    name: p.name || "Joueur",
-                    damage: val,
-                    ts: Date.now(),
-                    kind: "special",
-                    item_id: newItem,
-                    message: msg,
-                  });
-                  itemUsed = true;
-                }
-              }
-
-              if (itemUsed) {
-                hitLog = hitLog.slice(0, 8);
-                updateHitLogView();
-              }
-            }
-
-            // Adaptation dynamique du refresh
-            if (data && data.status) {
-              setDynamicRefresh(data.status);
-            }
-
-      } catch (e) {
-        console.error("Erreur API:", e);
-      }
-      prevState = data;   // 👈 IMPORTANT : on met à jour ici seulement
-      setLastUpdate();
-      updateAttackButtonState(data || { status: "idle" });
   }
 
+  async function fetchRaidState() {
+    const raidId = getSelectedRaidIdFromUrl();
+    if (!raidId) return;
 
-    async function sendAttack() {
-      const status = document.getElementById("attack-status");
-      const btn = document.getElementById("attack-button");
+    try {
+      const url = STATE_ENDPOINT + "?raid_id=" + encodeURIComponent(raidId) + "&t=" + Date.now();
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
 
-      if (!currentUserId) {
-        status.textContent = "Merci de renseigner ton ID Discord.";
-        return;
-      } 
+      updateBossView(data);
+      updateParticipantsView(data);
+      updateStatusPill(data);
+      updateAttackButtonState(data);
 
-      // 🔒 on bloque le bouton dès le clic
-      btn.disabled = true;
-      status.textContent = "Envoi de ton attaque...";
+      prevState = data;
+      setLastUpdate();
 
-      const raidId = getSelectedRaidIdFromUrl();
-
-      await fetch(ATTACK_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: currentUserId,
-          raid_id: raidId,
-        }),
-      });
-
-        if (!res.ok) {
-          const err = await res.json().catch(()=>({}));
-          status.textContent = err.detail || "Erreur lors de l'attaque.";
-          // on laisse updateAttackButtonState décider de le réactiver ou non au prochain tick
-          return;
-        }
-
-        status.textContent = "✅ Attaque envoyée ! (si tu es inscrit au raid)";
-        // le bouton sera réactivé ou non par updateAttackButtonState
-      } catch (e) {
-        console.error(e);
-        status.textContent = "Erreur réseau lors de l'attaque.";
-        // en cas de vraie erreur réseau, tu peux éventuellement réactiver :
-        // btn.disabled = false;
-      }
+      // refresh speed
+      setDynamicRefresh(data?.status || "idle");
+    } catch (e) {
+      console.error("Erreur API /raid/state:", e);
     }
+  }
 
+  // ---------- User id / attack ----------
+  function loadUserId() {
+    try {
+      const storedName = localStorage.getItem("raid_user_name");
+      const storedId = localStorage.getItem("raid_user_id");
 
-    async function loadItems() {
-      if (!currentUserId) return [];
+      const input = document.getElementById("user-name-input");
+      if (storedName && input) input.value = storedName;
+      if (storedId) currentUserId = storedId;
+    } catch (e) {}
+  }
 
-      const res = await fetch(API_BASE + "/raid/items?user_id=" + currentUserId);
-      return await res.json();
-    }
+  async function resolveUserIdFromName(name) {
+    const raidId = getSelectedRaidIdFromUrl();
+    if (!raidId) return null;
 
+    const url =
+      RESOLVE_ENDPOINT +
+      "?raid_id=" + encodeURIComponent(raidId) +
+      "&name=" + encodeURIComponent(name);
 
-
-    async function openItemsPanel() {
-      // 🔒 Sécurité : si on est dans le Monde à l'envers, pas d'objets
-      if (worldPhase === "upside" || document.body.classList.contains("upside-theme")) {
-        const status = document.getElementById("attack-status");
-        if (status) {
-          status.textContent = "🌌 Dans le Monde à l'envers, les objets ne fonctionnent plus.";
-        }
-        return;
-      }
-
-      const panel = document.getElementById("items-panel");
-      const list = document.getElementById("items-list");
-
-      list.innerHTML = "Chargement...";
-
-      panel.style.display = "block";
-
-      const items = await loadItems();
-
-      if (items.length === 0) {
-        list.innerHTML = "<i>Aucun objet disponible</i>";
-        return;
-      }
-
-      list.innerHTML = "";
-
-      items.forEach(item => {
-        const btn = document.createElement("button");
-        btn.textContent = `${item.name} (${item.effect})`;
-        btn.addEventListener("click", () => useItem(item));
-        list.appendChild(btn);
-      });
-    }
-
-
-
-    function closeItemsPanel() {
-      document.getElementById("items-panel").style.display = "none";
-    }
-
-
-    async function useItem(item) {
-      if (!currentUserId) return;
-
-      // ❌ Sécurité : pas d'objet dans le Monde à l'envers
-      if (worldPhase === "upside" || worldPhase === "entering") {
-        const status = document.getElementById("attack-status");
-        if (status) {
-          status.textContent = "🌌 Impossible d'utiliser des objets dans le Monde à l'envers.";
-        }
-
-        hitLog.unshift({
-          type: "boss",
-          name: "Démogorgon",
-          damage: 0,
-          ts: Date.now(),
-          kind: "special",
-          text: `⚠️ ${item.name} est aspiré par le Monde à l'envers et ne se déclenche pas.`,
-        });
-        hitLog = hitLog.slice(0, 8);
-        updateHitLogView();
-
-        closeItemsPanel();
-        return;
-      }
-
-      const raidId = getSelectedRaidIdFromUrl();
-
-      await fetch(USER_ITEMS_USE_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: currentUserId,
-          item_id,
-          raid_id: raidId,
-        }),
-      });
-
-      if (res.ok) {
-        document.getElementById("attack-status").textContent =
-          "🎒 Objet utilisé !";
-        closeItemsPanel();
-        // Le log sera ajouté automatiquement par fetchRaidState
-      } else {
-        const err = await res.json().catch(()=>({detail:"Erreur"}));
-        document.getElementById("attack-status").textContent =
-          "❌ " + err.detail;
-      }
-    }
-
-    async function openArtifactsPanel() {
-      const panel = document.getElementById("artifacts-panel");
-      if (!panel) return;
-
-      const status = document.getElementById("attack-status");
-
-      if (!currentUserId) {
-        status.textContent = "Renseigne ton pseudo Discord et rejoins le raid avant de gérer tes artefacts.";
-        return;
-      }
-
-      try {
-        const res = await fetch(
-          USER_ARTIFACTS_ENDPOINT + "?uid=" + encodeURIComponent(String(currentUserId))
-        );
-        if (!res.ok) {
-          status.textContent = "❌ Impossible de charger tes artefacts.";
-          return;
-        }
-        const data = await res.json();
-
-        if (!data.unlocked) {
-          status.textContent = "🔒 Tu n'as pas encore débloqué les artefacts.";
-          panel.style.display = "none";
-          return;
-        }
-
-        currentArtifactsSlots = data.slots || { slot1: null, slot2: null, slot3: null };
-        availableArtifacts = data.available || {};
-
-        renderArtifactSlots();
-        panel.style.display = "block";
-      } catch (e) {
-        status.textContent = "❌ Erreur réseau lors du chargement des artefacts.";
-      }
-    }
-
-    function closeArtifactsPanel() {
-      const panel = document.getElementById("artifacts-panel");
-      if (!panel) return;
-      panel.style.display = "none";
-    }
-
-    function renderArtifactSlots() {
-      const slotIds = ["slot1", "slot2", "slot3"];
-
-      slotIds.forEach((slotId) => {
-        const el = document.getElementById(slotId);
-        if (!el) return;
-
-        const artId = currentArtifactsSlots[slotId] || null;
-        el.innerHTML = "";
-        el.classList.add("artifact-slot");
-        el.dataset.slotId = slotId;
-        el.onclick = () => openArtifactChoice(slotId);
-
-        // on remet à zéro le tooltip par défaut
-        el.removeAttribute("data-effect");
-        el.removeAttribute("title");
-
-        if (artId && availableArtifacts[artId]) {
-          const info = availableArtifacts[artId];
-          const effectText = getArtifactEffectText(artId);
-          el.innerHTML = `
-            <div class="artifact-name">${info.label || artId}</div>
-            <div class="artifact-id">${artId}</div>
-            <div class="artifact-hint">Survole pour voir l'effet</div>
-          `;
-          // 👉 ici, on ajoute l'effet pour le hover
-          el.dataset.effect = effectText;
-          el.title = effectText; // tooltip natif du navigateur
-        } else if (artId) {
-          const effectText = getArtifactEffectText(artId);
-          el.innerHTML = `
-            <div class="artifact-name">${artId}</div>
-            <div class="artifact-hint">Survole pour voir l'effet</div>
-          `;
-          el.dataset.effect = effectText;
-          el.title = effectText;
-        } else {
-          el.innerHTML = `<span class="artifact-empty">+ Aucun artefact</span>`;
-        }
-      });
-    }
-
-
-    function openArtifactChoice(slotId) {
-      // petit modal simple en overlay
-      const existing = document.getElementById("artifact-modal");
-      if (existing) existing.remove();
-
-      const container = document.createElement("div");
-      container.id = "artifact-modal";
-      container.className = "artifact-modal";
-      container.innerHTML = `
-        <div class="artifact-modal-content">
-          <h3>Choisir un artefact pour ${slotId}</h3>
-          <div class="artifact-choice-list"></div>
-          <button class="artifact-clear">Retirer l'artefact</button>
-          <button class="artifact-cancel">Annuler</button>
-        </div>
-      `;
-      document.body.appendChild(container);
-
-      const list = container.querySelector(".artifact-choice-list");
-      const entries = Object.entries(availableArtifacts || {});
-
-      if (entries.length === 0) {
-        list.innerHTML = "<p>Tu n'as pas encore d'artefacts dans ton inventaire.</p>";
-      } else {
-        entries.forEach(([artId, info]) => {
-          const btn = document.createElement("button");
-          btn.className = "artifact-choice-btn";
-          btn.textContent = `${info.label || artId} (x${info.qty ?? "?"})`;
-          btn.onclick = async () => {
-            await equipArtifact(slotId, artId);
-            container.remove();
-          };
-          list.appendChild(btn);
-        });
-      }
-
-      container.querySelector(".artifact-clear").onclick = async () => {
-        await equipArtifact(slotId, null);
-        container.remove();
-      };
-      container.querySelector(".artifact-cancel").onclick = () => container.remove();
-    }
-
-    async function equipArtifact(slotId, artId) {
-      if (!currentUserId) return;
-      const status = document.getElementById("attack-status");
-
-      try {
-        const res = await fetch(USER_ARTIFACTS_EQUIP_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: String(currentUserId),
-            slot: slotId,
-            artifact_id: artId,
-          }),
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ detail: "Erreur" }));
-          status.textContent =
-            "❌ " + (err.detail || "Impossible de mettre à jour l'artefact.");
-          return;
-        }
-
-        const data = await res.json();
-        currentArtifactsSlots = data.slots || currentArtifactsSlots;
-        renderArtifactSlots();
-        status.textContent = "💠 Artefact mis à jour.";
-      } catch (e) {
-        status.textContent = "❌ Erreur réseau lors de la mise à jour des artefacts.";
-      }
-    }
-
-    
-    async function resolveUserIdFromName(name) {
-      const raidId = getSelectedRaidIdFromUrl();
-      if (!raidId) return null;
-
-      const url =
-        RESOLVE_ENDPOINT +
-        "?raid_id=" + encodeURIComponent(raidId) +
-        "&name=" + encodeURIComponent(name);
-
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.user_id) return data.user_id;
-      } catch (e) {
-        console.error("Erreur /raid/resolve_user :", e);
-      }
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.user_id || null;
+    } catch (e) {
+      console.error("Erreur /raid/resolve_user:", e);
       return null;
     }
+  }
 
-    // --- Init variables ---
-    let refreshInterval = null;
+  async function saveUserName() {
+    const input = document.getElementById("user-name-input");
+    const status = document.getElementById("attack-status");
+    const val = (input?.value || "").trim();
 
-
-    // Events
-    document.getElementById("open-artifacts").addEventListener("click", openArtifactsPanel);
-    document.getElementById("open-items").addEventListener("click", openItemsPanel);
-    document.getElementById("close-items").addEventListener("click", closeItemsPanel);
-    document.getElementById("user-name-input").addEventListener("input", saveUserName);   // instantané
-    document.getElementById("user-name-input").addEventListener("change", saveUserName);  // fallback
-    document.getElementById("attack-button").addEventListener("click", sendAttack);
-    document.getElementById("chat-send").addEventListener("click", sendChatMessage);
-    document.getElementById("chat-input").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        sendChatMessage();
-      }
-    });
-    document.addEventListener("DOMContentLoaded", () => {
-        const btn = document.getElementById("back-to-selector");
-        if (btn) btn.onclick = returnToRaidSelector;
-    });
-
-    
-    // --- Dynamic refresh du raid ---
-    function setDynamicRefresh(status) {
-      if (refreshInterval) clearInterval(refreshInterval);
-
-      if (status === "running") {
-        // Pendant un raid → refresh rapide
-        refreshInterval = setInterval(fetchRaidState, 1000);
-      } else {
-        // Raid terminé ou inactif → refresh plus lent
-        refreshInterval = setInterval(fetchRaidState, 5000);
-      }
+    if (!val) {
+      currentUserId = null;
+      localStorage.removeItem("raid_user_name");
+      localStorage.removeItem("raid_user_id");
+      updateAttackButtonState(prevState || {status:"idle", participants:[]});
+      if (status) status.textContent = "Renseigne ton pseudo Discord pour pouvoir attaquer.";
+      return;
     }
 
-    // --- Init au chargement de la page ---
-    async function initPage() {
-      const raidMain = document.getElementById("raid-main");
-      const raidSelector = document.getElementById("raid-selector");
-      const selectedRaidId = getSelectedRaidIdFromUrl();
+    localStorage.setItem("raid_user_name", val);
 
-      // 🧭 Aucun raid choisi → écran de sélection
-      if (!selectedRaidId) {
-        if (raidMain) raidMain.style.display = "none";
-        if (raidSelector) raidSelector.style.display = "block";
-        await loadRaidSelector();
+    const resolved = await resolveUserIdFromName(val);
+    if (!resolved) {
+      currentUserId = null;
+      localStorage.removeItem("raid_user_id");
+      if (status) status.textContent = "❌ Joueur introuvable dans ce raid. Assure-toi d'avoir fait /raid_join.";
+    } else {
+      currentUserId = resolved;
+      localStorage.setItem("raid_user_id", resolved);
+      if (status) status.textContent = "✅ Joueur reconnu : " + val;
+    }
+
+    updateAttackButtonState(prevState || {status:"idle", participants:[]});
+  }
+
+  function updateAttackButtonState(statusData) {
+    const btn = document.getElementById("attack-button");
+    const status = document.getElementById("attack-status");
+    if (!btn || !status) return;
+
+    if (!currentUserId) {
+      btn.disabled = true;
+      status.textContent = "Renseigne ton pseudo Discord pour pouvoir attaquer.";
+      return;
+    }
+
+    if (!statusData || statusData.status !== "running") {
+      btn.disabled = true;
+      status.textContent = "Aucun raid actif.";
+      return;
+    }
+
+    const me = (statusData.participants || []).find(p => String(p.user_id) === String(currentUserId));
+    if (!me) {
+      btn.disabled = true;
+      status.textContent = "Tu n'es pas inscrit au raid (/raid_join).";
+      return;
+    }
+
+    if (me.hp_max > 0 && me.hp_current <= 0) {
+      btn.disabled = true;
+      status.textContent = "Ton familier est K.O., tu ne peux plus attaquer.";
+      return;
+    }
+
+    if (statusData.current_turn && String(statusData.current_turn) !== String(currentUserId)) {
+      btn.disabled = true;
+      status.textContent = "Ce n'est pas ton tour. Patiente…";
+      return;
+    }
+
+    btn.disabled = false;
+    status.textContent = "C'est ton tour ! Clique sur Attaquer.";
+  }
+
+  async function sendAttack() {
+    const status = document.getElementById("attack-status");
+    const btn = document.getElementById("attack-button");
+    const raidId = getSelectedRaidIdFromUrl();
+
+    if (!currentUserId || !raidId) {
+      if (status) status.textContent = "Renseigne ton pseudo Discord et sélectionne un raid.";
+      return;
+    }
+
+    btn.disabled = true;
+    if (status) status.textContent = "Envoi de ton attaque...";
+
+    try {
+      const res = await fetch(ATTACK_ENDPOINT, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ user_id: String(currentUserId), raid_id: String(raidId) })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({}));
+        if (status) status.textContent = (err.detail || "Erreur lors de l'attaque.");
         return;
       }
-      // Ici => un raid est sélectionné, donc on affiche le bouton retour
-      const backBtn = document.getElementById("back-to-selector");
-      if (backBtn) backBtn.style.display = "inline-block";
 
-      // 🌋 Raid choisi → on affiche la page du raid
-      if (raidSelector) raidSelector.style.display = "none";
-      if (raidMain) raidMain.style.display = "block";
+      if (status) status.textContent = "✅ Attaque envoyée !";
+      // le bouton sera réévalué au prochain refresh
+    } catch (e) {
+      console.error(e);
+      if (status) status.textContent = "Erreur réseau lors de l'attaque.";
+    }
+  }
 
-      loadUserId();
-      fetchRaidState();
+  // ---------- Items ----------
+  async function loadItems() {
+    const raidId = getSelectedRaidIdFromUrl();
+    if (!currentUserId || !raidId) return [];
 
-      // tchat
-      fetchChat();
-      setInterval(fetchChat, 3000);
+    try {
+      const url = ITEMS_ENDPOINT + "?raid_id=" + encodeURIComponent(raidId) + "&user_id=" + encodeURIComponent(String(currentUserId)) + "&t=" + Date.now();
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      console.error("Erreur /raid/items:", e);
+      return [];
+    }
+  }
 
-      // refresh du raid
-      setDynamicRefresh("idle");
+  async function openItemsPanel() {
+    const panel = document.getElementById("items-panel");
+    const list = document.getElementById("items-list");
+    const status = document.getElementById("attack-status");
+
+    if (!panel || !list) return;
+    if (!currentUserId) {
+      if (status) status.textContent = "Renseigne ton pseudo Discord pour utiliser des objets.";
+      return;
     }
 
-    // lance l'init une fois le DOM prêt
-    document.addEventListener("DOMContentLoaded", initPage);
+    list.innerHTML = "Chargement...";
+    panel.style.display = "block";
 
-  </script>
+    const items = await loadItems();
+    if (items.length === 0) {
+      list.innerHTML = "<i>Aucun objet disponible</i>";
+      return;
+    }
+
+    list.innerHTML = "";
+    items.forEach(item => {
+      const btn = document.createElement("button");
+      btn.textContent = `${item.name} (${item.effect}) x${item.qty ?? ""}`;
+      btn.addEventListener("click", () => useItem(item));
+      list.appendChild(btn);
+    });
+  }
+
+  function closeItemsPanel() {
+    const panel = document.getElementById("items-panel");
+    if (panel) panel.style.display = "none";
+  }
+
+  async function useItem(item) {
+    const status = document.getElementById("attack-status");
+    const raidId = getSelectedRaidIdFromUrl();
+    if (!currentUserId || !raidId) return;
+
+    try {
+      const res = await fetch(USE_ITEM_ENDPOINT, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+          user_id: String(currentUserId),
+          raid_id: String(raidId),
+          item_id: String(item.id)
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({}));
+        if (status) status.textContent = "❌ " + (err.detail || "Erreur objet.");
+        return;
+      }
+
+      if (status) status.textContent = "🎒 Objet utilisé !";
+      closeItemsPanel();
+    } catch (e) {
+      console.error(e);
+      if (status) status.textContent = "❌ Erreur réseau lors de l'utilisation de l'objet.";
+    }
+  }
+
+  // ---------- Chat ----------
+  function renderChat(messages) {
+    const box = document.getElementById("chat-messages");
+    if (!box) return;
+    box.innerHTML = "";
+
+    (messages || []).forEach(msg => {
+      const row = document.createElement("div");
+      row.className = "chat-message";
+
+      if (msg.is_spectator) {
+        const spec = document.createElement("span");
+        spec.className = "chat-spectator-tag";
+        spec.textContent = "[Spectateur]";
+        row.appendChild(spec);
+      }
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "chat-name";
+      nameSpan.textContent = (msg.name || "Inconnu") + " : ";
+      row.appendChild(nameSpan);
+
+      const textSpan = document.createElement("span");
+      textSpan.className = "chat-text";
+      textSpan.textContent = msg.content || "";
+      row.appendChild(textSpan);
+
+      box.appendChild(row);
+    });
+
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function fetchChat() {
+    const raidId = getSelectedRaidIdFromUrl();
+    if (!raidId) return;
+
+    try {
+      const res = await fetch(CHAT_ENDPOINT + "?raid_id=" + encodeURIComponent(raidId) + "&t=" + Date.now());
+      if (!res.ok) return;
+      const data = await res.json();
+      renderChat(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Erreur chat:", e);
+    }
+  }
+
+  async function sendChatMessage() {
+    const input = document.getElementById("chat-input");
+    const txt = (input?.value || "").trim();
+    if (!txt) return;
+
+    const raidId = getSelectedRaidIdFromUrl();
+    if (!raidId) return;
+
+    const pseudo = localStorage.getItem("raid_user_name") || "Inconnu";
+
+    try {
+      const res = await fetch(CHAT_ENDPOINT, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+          user_id: currentUserId,
+          raid_id: raidId,
+          name: pseudo,
+          content: txt.slice(0,300)
+        })
+      });
+      if (!res.ok) return;
+      input.value = "";
+      fetchChat();
+    } catch (e) {
+      console.error("Erreur envoi chat:", e);
+    }
+  }
+
+  // ---------- Dynamic refresh ----------
+  function setDynamicRefresh(status) {
+    if (refreshInterval) return; // on laisse tourner à 1s, c'est ok
+
+    // 1s en raid, sinon 3s
+    const ms = (status === "running") ? 1000 : 3000;
+    refreshInterval = setInterval(fetchRaidState, ms);
+  }
+
+  // ---------- Utils ----------
+  function escapeHtml(str) {
+    return String(str || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  // ---------- Init ----------
+  function wireEvents() {
+    const backBtn = document.getElementById("back-to-selector");
+    if (backBtn) backBtn.onclick = returnToRaidSelector;
+
+    const openItemsBtn = document.getElementById("open-items");
+    if (openItemsBtn) openItemsBtn.addEventListener("click", openItemsPanel);
+
+    const closeItemsBtn = document.getElementById("close-items");
+    if (closeItemsBtn) closeItemsBtn.addEventListener("click", closeItemsPanel);
+
+    const nameInput = document.getElementById("user-name-input");
+    if (nameInput) {
+      nameInput.addEventListener("input", saveUserName);
+      nameInput.addEventListener("change", saveUserName);
+    }
+
+    const atkBtn = document.getElementById("attack-button");
+    if (atkBtn) atkBtn.addEventListener("click", sendAttack);
+
+    const chatBtn = document.getElementById("chat-send");
+    if (chatBtn) chatBtn.addEventListener("click", sendChatMessage);
+
+    const chatInput = document.getElementById("chat-input");
+    if (chatInput) {
+      chatInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          sendChatMessage();
+        }
+      });
+    }
+
+    // Artefacts non branchés sur ton API actuelle -> on cache le bouton pour éviter les erreurs
+    const artBtn = document.getElementById("open-artifacts");
+    if (artBtn) artBtn.style.display = "none";
+  }
+
+  async function initPage() {
+    const raidMain     = document.getElementById("raid-main");
+    const raidSelector = document.getElementById("raid-selector");
+    const selectedRaidId = getSelectedRaidIdFromUrl();
+
+    if (!selectedRaidId) {
+      // Selector
+      if (raidMain) raidMain.style.display = "none";
+      if (raidSelector) raidSelector.style.display = "block";
+      const backBtn = document.getElementById("back-to-selector");
+      if (backBtn) backBtn.style.display = "none";
+
+      await loadRaidSelector();
+
+      // refresh selector every 5s
+      if (selectorInterval) clearInterval(selectorInterval);
+      selectorInterval = setInterval(loadRaidSelector, 5000);
+      return;
+    }
+
+    // Raid page
+    if (selectorInterval) { clearInterval(selectorInterval); selectorInterval = null; }
+
+    const backBtn = document.getElementById("back-to-selector");
+    if (backBtn) backBtn.style.display = "inline-block";
+
+    if (raidSelector) raidSelector.style.display = "none";
+    if (raidMain) raidMain.style.display = "block";
+
+    loadUserId();
+
+    await fetchRaidState();
+    if (!refreshInterval) refreshInterval = setInterval(fetchRaidState, 1000);
+
+    await fetchChat();
+    if (!chatInterval) chatInterval = setInterval(fetchChat, 3000);
+
+    // initial state for attack button
+    updateAttackButtonState(prevState || {status:"idle", participants:[]});
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    wireEvents();
+    initPage();
+  });
+</script>
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
