@@ -1198,6 +1198,7 @@
 
   // ---------- Raid page ----------
   let prevState = null;
+    let lastBossImageKey = null;
   let currentUserId = null;
   let refreshInterval = null;
   let chatInterval = null;
@@ -1280,15 +1281,38 @@
     if (timerRange && data.start && data.end) {
       timerRange.textContent =
         `Du ${new Date(data.start*1000).toLocaleString("fr-FR")} au ${new Date(data.end*1000).toLocaleString("fr-FR")}`;
-    }
-
-    // Image du boss (si tu as assets/<boss>.png)
+    }    // Image du boss (si tu as assets/<boss>.png)
+    // ✅ Fix: si le src ne change pas, on ne doit pas laisser l'opacité à 0
     if (bossImgEl && data.boss) {
-      const imgPath = `assets/${data.boss}.png`;
-      bossImgEl.style.opacity = "0.0";
-      bossImgEl.src = imgPath;
-      bossImgEl.onload = () => bossImgEl.style.opacity = "1";
-      bossImgEl.onerror = () => bossImgEl.style.opacity = "0.0";
+      const bossId = String(data.boss).trim();
+      const wantedSrc = `assets/${encodeURIComponent(bossId)}.png`;
+
+      if (lastBossImageKey !== wantedSrc) {
+        lastBossImageKey = wantedSrc;
+
+        bossImgEl.style.opacity = "0.0";
+
+        bossImgEl.onload = () => {
+          bossImgEl.style.opacity = "1";
+        };
+
+        bossImgEl.onerror = () => {
+          bossImgEl.style.opacity = "0.0";
+          lastBossImageKey = null;
+        };
+
+        bossImgEl.src = wantedSrc;
+
+        // si déjà en cache, onload peut ne pas se déclencher
+        if (bossImgEl.complete && bossImgEl.naturalWidth > 0) {
+          bossImgEl.style.opacity = "1";
+        }
+      } else {
+        // même boss: s'assurer que c'est visible si déjà chargé
+        if (bossImgEl.complete && bossImgEl.naturalWidth > 0) {
+          bossImgEl.style.opacity = "1";
+        }
+      }
     }
   }
 
